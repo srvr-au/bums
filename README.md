@@ -1,1 +1,1 @@
-# bums
+Bash Ubuntu Management Scripts
