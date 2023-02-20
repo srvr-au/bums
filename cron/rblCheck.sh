@@ -1,5 +1,29 @@
 #!/bin/bash
 
+vtext='1.00'
+usetext='Runs from cron and checks if IP address
+is in any RBLs.'
+
+read -r -d '' htext <<-EOF
+-------------------------
+  Usage: ${0##*/} [options]
+  Version: ${vtext}
+-------------------------
+  [-v]  Output Script Version
+  [-h]  Output Help
+-------------------------
+  Use: ${usetext}
+  
+EOF
+
+while getopts 'vh' option; do
+case "${option}"
+in
+  v) echo $vtext; exit 1;;
+  h) clear; echo "$htext"; exit 1;;
+esac
+done
+
 ip4=$( hostname -I )
 hostname=$( hostname )
 email='root'
@@ -90,21 +114,18 @@ let notlisted++
 fi
 }
 
-# -- do a reverse ( address -> name) DNS lookup
 REVERSE_DNS=$(dig +short -x ${ip4})
  
 emailbody+="IP ${ip4} NAME ${REVERSE_DNS:----}\n\n"
 
 emailbody+="Important Blacklists:\n\n"
 for bl1 in ${blacklists1} ; do
-process $bl1
+  process $bl1
 done
 
 emailbody+="\nOther Blacklists:\n\n"
 for bl2 in ${blacklists2} ; do
-    # use dig to lookup the name in the blacklist
-    #echo "$(dig +short -t a ${reverse}.${BL}. |  tr '\n' ' ')"
-process $bl2
+  process $bl2
 done
 
 emailbody+="Total Blacklists checked - ${count}\nTimed Out - ${timedout}\nNot Listed - ${notlisted}\nRefused - ${refused}"
