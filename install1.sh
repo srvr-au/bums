@@ -34,16 +34,16 @@ in
 esac
 done
 
-get-bashTK(){
-echo 'Please wait while I download and install the public PGP key'
-if wget https://srvr-au.bitbucket.io/verifyscript.pubkey &&
-  gpg --import verifyscript.pubkey; then
-  echo 'PGP public key sucessfully downloaded and added to keyring'
-  rm verifyscript.pubkey
-else
-  echo 'Fatal Error! exiting...'
-  exit 1
+clear
+if [[ $( pwd ) != '/root/bums' ]]; then
+  mkdir /root/bums
+  cd /root/bums
 fi
+if [[ -f bashTK ]]; then
+  echo 'This script can only run once.'
+  exit
+fi
+
 echo -e "Please wait while I grab a needed file...\n\n"
 if wget https://cdn.jsdelivr.net/gh/srvr-au/bashTK@main/bashTK &&
   wget https://cdn.jsdelivr.net/gh/srvr-au/bashTK@main/bashTK.sig &&
@@ -54,11 +54,13 @@ if wget https://cdn.jsdelivr.net/gh/srvr-au/bashTK@main/bashTK &&
   clear
 else
   echo 'Fatal Error! exiting...'
-  exit 1
+  exit
 fi
-}
 
-run-initial(){
+source bashTK
+echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
+echo -e "${usetext}\n\n"
+
 BTKheader 'Initial Server Check'
 thisOS=$( lsb_release -is )
 thisVer=$( lsb_release -rs )
@@ -95,47 +97,32 @@ echo ':set shiftwidth=2
 :set tabstop=2' >> /root/.vimrc
 BTKcmdCheck 'Set Tab to 2 spaces.'
 BTKpause
-}
 
-make-swap(){
-BTKheader 'Create SWAP (virtual RAM).'
-BTKinfo 'Looks like you have no swap. In this age of Super fast SSD, allocating some disk space to swap makes sense.'
-ram=$( free -m | grep Mem: | awk '{print $2}' )
-BTKinfo "You have $ram mb of RAM and below is your Disk Usage."
-df -h /
-BTKaskConfirm 'Enter in whole numbers the amount of GB you wish to allocate for swap. 0 for none.'
-if [[ $btkAnswerEng =~ ^[1-9]+$ ]]; then
-  fallocate -l ${btkAnswerEng} /swapfile
-  chmod 600 /swapfile
-  mkswap /swapfile
-  swapon /swapfile
-  BTKbackupOrigConfig '/etc/fstab'
-  echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab
-  mount -a
-  BTKinfo 'Here is your new Memory Stats'
-  free
-else
-  BTKinfo 'You chose not to enable Swap.'
-fi
-BTKpause
-}
-
-clear
-if [[ $( pwd ) != '/root/bums' ]]; then
-mkdir /root/bums
-cd /root/bums
-fi
-[[ -f bashTK ]] && echo 'This script can only run once.'; exit;
-
-get-bashTK
-
-source bashTK
-echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
-echo -e ${usetext}
-
-run-initial
 swap=$( free -m | grep Swap: | awk '{print $2}' )
-[[ "$swap" -eq 0 ]] && make-swap || echo 'Looks like you have swap enabled...'
+if [[ "$swap" -eq 0 ]]; then
+  BTKheader 'Create SWAP (virtual RAM).'
+  BTKinfo 'Looks like you have no swap. In this age of Super fast SSD, allocating some disk space to swap makes sense.'
+  ram=$( free -m | grep Mem: | awk '{print $2}' )
+  BTKinfo "You have $ram mb of RAM and below is your Disk Usage."
+  df -h /
+  BTKaskConfirm 'Enter in whole numbers the amount of GB you wish to allocate for swap. 0 for none.'
+  if [[ $btkAnswerEng =~ ^[1-9]+$ ]]; then
+    fallocate -l ${btkAnswerEng}GB /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile
+    swapon /swapfile
+    BTKbackupOrigConfig '/etc/fstab'
+    echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab
+    mount -a
+    BTKinfo 'Here is your new Memory Stats'
+    free
+  else
+    BTKinfo 'You chose not to enable Swap.'
+  fi
+  BTKpause
+else
+  echo 'Looks like you already have swap enabled...'
+fi
 
 BTKheader 'Install Packages'
 echo 'Looks like it is time to install a few packages...'
@@ -180,7 +167,7 @@ if [[ "$install" == *" s-nail"* ]]; then
   BTKaskConfirm 'SMTP Server Username Password'
   mtapass=$btkAnswerEng
   BTKask 'SMTP Server TLS Port (y for 587, n for 465)'
-  if [[] $btkYN == 'y' ]]; then
+  if [[ $btkYN == 'y' ]]; then
     mtatype='submission'
     mtaport='587'
   else
@@ -246,7 +233,7 @@ default: root
   mkdir -p /root/bums/cron/graphs
   BTKcmdCheck 'Make cron/graphs Directory.'
 
-  if [[ wget https://cdn.jsdelivr.net/gh/srvr-au/bums@main/cron/sysstatReport.sh ]]; then
+  if wget https://cdn.jsdelivr.net/gh/srvr-au/bums/cron/sysstatReport.sh; then
     BTKsuccess 'sysstatReport.sh downloaded...'
     mv sysstatReport.sh cron/sysstatReport.sh
     BTKcmdCheck 'Move sysstatReport.sh to cron directory.'
@@ -260,7 +247,7 @@ default: root
     BTKerror 'sysstatReport.sh failed to download.'
   fi
 
-  if [[ wget https://cdn.jsdelivr.net/gh/srvr-au/bums@main/cron/rebootCheck.sh ]]; then
+  if wget https://cdn.jsdelivr.net/gh/srvr-au/bums/cron/rebootCheck.sh; then
     BTKsuccess 'rebootCheck.sh downloaded...'
     mv rebootCheck.sh cron/rebootCheck.sh
     BTKcmdCheck 'Move rebootCheck.sh to cron directory.'
@@ -274,7 +261,7 @@ default: root
     BTKerror 'rebootCheck.sh failed to download...'
   fi
 
-  if [[ wget https://cdn.jsdelivr.net/gh/srvr-au/bums@main/cron/rblCheck.sh ]]; then
+  if wget https://cdn.jsdelivr.net/gh/srvr-au/bums/cron/rblCheck.sh; then
     BTKsuccess 'rblCheck.sh downloaded...'
     mv rblCheck.sh cron/rblCheck.sh
     BTKcmdCheck 'Move rblCheck.sh to cron directory.'
@@ -291,7 +278,7 @@ default: root
   else
     echo 'Every Server needs some way to send mail - so you will need to install Postfix.'
     echo 'Downloading install2.sh, run it after reboot...'
-    if [[ wget https://cdn.jsdelivr.net/gh/srvr-au/bums@main/install2.sh ]]; then
+    if wget https://cdn.jsdelivr.net/gh/srvr-au/bums/install2.sh; then
       BTKsuccess 'install2.sh download successful.'
       chmod +x install2.sh
       BTKcmdCheck 'chmod install2.sh executable'
