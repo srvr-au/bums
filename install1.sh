@@ -126,23 +126,24 @@ fi
 
 BTKheader 'Install Packages'
 echo 'Looks like it is time to install a few packages...'
-install=''
+install=()
 BTKask 'Would you like to install sysstat (System Statistics)... ?'
-[[ ${btkYN} == 'y' ]] && install+=" sysstat" || echo 'No sysstat for you then...'
+[[ ${btkYN} == 'y' ]] && install+=('sysstat') || echo 'No sysstat for you then...'
 BTKask 'Would you like to install s-nail (simple server email), rather than Postfix... ?'
-[[ ${btkYN} == 'y' ]] && install+=" s-nail" || echo 'You will need to run install2.sh to install Postfix...'
-echo -e "We will install the following software\n$install\n"
+[[ ${btkYN} == 'y' ]] && install+=('s-nail') || echo 'You will need to run install2.sh to install Postfix...'
+echo -e "We will install the following software\n${install[@]}\n"
 BTKpause
-BTKinstall $install
+BTKinstall ${install[@]}
 BTKpause
-if [[ "$install" == *" sysstat"* ]]; then
+
+if [[ "$installThese" == *"sysstat"* ]]; then
   echo 'Just enabling sysstat'
   BTKenable 'sysstat'
   BTKgetStatus 'sysstat'
   BTKpause
 fi
 
-if [[ "$install" == *" s-nail"* ]]; then
+if [[ "$installThese" == *"s-nail"* ]]; then
   echo 'Mail on this server will be sent to an SMTP Server for delivery...'
   BTKaskConfirm 'SMTP Server Hostname'
   mtahost=$btkAnswerEng
