@@ -126,9 +126,7 @@ fi
 
 BTKheader 'Install Packages'
 echo 'Looks like it is time to install a few packages...'
-install='apticron needrestart'
-BTKask 'Would you like to install Uncomplicated Firewall (UFW)... ?'
-[[ ${btkYN} == 'y' ]] && install+=" ufw" || echo 'No Firewall for you then...'
+install=''
 BTKask 'Would you like to install sysstat (System Statistics)... ?'
 [[ ${btkYN} == 'y' ]] && install+=" sysstat" || echo 'No sysstat for you then...'
 BTKask 'Would you like to install s-nail (simple server email), rather than Postfix... ?'
@@ -141,20 +139,6 @@ if [[ "$install" == *" sysstat"* ]]; then
   echo 'Just enabling sysstat'
   BTKenable 'sysstat'
   BTKgetStatus 'sysstat'
-  BTKpause
-fi
-
-if [[ "$install" == *" ufw"* ]]; then
-  echo 'Just configuring and enabling Firewall'
-  ufw allow ssh
-  if [[ $? -eq 0 ]]; then
-    BTKsuccess "SSH Port opened"
-    BTKenable 'ufw'
-    BTKgetStatus 'ufw'
-  else
-    BTKerror "SSH Port Failed to be opened. Firewall NOT enabled."
-    BTKgetStatus 'ufw'
-  fi
   BTKpause
 fi
 
@@ -179,8 +163,8 @@ if [[ "$install" == *" s-nail"* ]]; then
   BTKaskConfirm 'From email address'
   mtafrom=$btkAnswerEng
 
-  urlencodeduser=( python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" $mtauser )
-  urlencodedpass=( python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" $mtapass )
+  urlencodeduser=$( python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" $mtauser )
+  urlencodedpass=$( python3 -c "import urllib.parse, sys; print(urllib.parse.quote(sys.argv[1]))" $mtapass )
 
   echo "
 #--------------------------------------------#
@@ -229,7 +213,16 @@ root: $mtaroot
 default: root
 " >> /etc/aliases
   BTKcmdCheck 'Write root email address into aliases file.'
+  
+  echo '
+Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailReport "always";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+' >> /etc/apt/apt.conf.d/50unattended-upgrades
 
+  BTKcmdCheck 'Enable unattended upgrades to send mail and reboot'
+  
   mkdir -p /root/bums/cron/graphs
   BTKcmdCheck 'Make cron/graphs Directory.'
 
@@ -287,6 +280,22 @@ default: root
     fi
   BTKpause
   fi
+BTKpause
+fi
+
+BTKheader 'Uncomplicated Firewall open ssh and enable.'
+if ufw allow OpenSSH; then
+  BTKsuccess 'Firewall allow OpenSSH.'
+  if ufw enable; then
+    BTKsuccess 'Firewall enabled.'
+    ufw status
+  else
+    BTKerror 'Firewall failed to enable.'
+  fi
+else
+  BTKerror 'Firewall failed to allow OpenSSH and NOT enabled.'
+fi
+BTKpause
 
 BTKheader 'Finish: Upgrade and Reboot'
 echo 'Now we will upgrade all Server Software... then reboot'
