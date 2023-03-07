@@ -4,7 +4,7 @@
 
 Login as root to a clean install of Ubuntu 22.04 or greater
 ```
-wget https://cdn.jsdelivr.net/gh/srvr-au/bums/install.sh
+wget https://raw.githubusercontent.com/srvr-au/bums/main/install.sh
 chmod +x install.sh
 ./install.sh
 ```
