@@ -27,8 +27,8 @@ done
 hostname=$( hostname )
 email='root'
 now=$( date )
-disk="/dev/vda1"
-services=(sshd nginx php7.4-fpm mariadb postfix dovecot opendkim sysstat pdns unattended-upgrades ufw)
+disk='/dev/vda1 '
+services=(ssh unattended-upgrades ufw sysstat nginx php7.4-fpm mariadb postfix dovecot opendkim pdns)
 message="$hostname was rebooted at $now\n"
 
 message+="\nMemory usage: \n"
