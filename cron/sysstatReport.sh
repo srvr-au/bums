@@ -27,12 +27,13 @@ done
 hostname=$( hostname )
 now=$( date )
 email='root'
-subject=$hostname+' SysStat Report'
-message=$now+' '+$hostname
+subject="$hostname - SysStat Report"
+message="$now"
+graphsDir='/root/bums/cron/graphs/'
 
-sadf -g -T -- -r ALL -1 > graphs/memory.svg
-sadf -g -T -- -P ALL -1 > graphs/cpu.svg
-sadf -g -T -- -q LOAD -1 > graphs/load.svg
-sadf -g -T -- -S -1 > graphs/swap.svg
+sadf -g -T -- -r ALL -1 > ${graphsDir}memory.svg
+sadf -g -T -- -P ALL -1 > ${graphsDir}cpu.svg
+sadf -g -T -- -q LOAD -1 > ${graphsDir}load.svg
+sadf -g -T -- -S -1 > ${graphsDir}swap.svg
 
-echo -e "$message" | mail -s "$subject" -a graphs/memory.svg -a graphs/cpu.svg -a graphs/load.svg -a graphs/swap.svg $email
+echo -e "$message" | mail -s "$subject" -a ${graphsDir}memory.svg -a ${graphsDir}cpu.svg -a ${graphsDir}load.svg -a ${graphsDir}swap.svg $email
