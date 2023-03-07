@@ -27,7 +27,7 @@ done
 hostname=$( hostname )
 email='root'
 now=$( date )
-disk='/dev/vda1 '
+disk='/'
 services=(ssh unattended-upgrades ufw sysstat nginx php7.4-fpm mariadb postfix dovecot opendkim pdns)
 message="$hostname was rebooted at $now\n"
 
@@ -36,7 +36,7 @@ message+="$( free -tm )"
 message+="\n\nUptime: "
 message+="$( uptime )"
 message+="\n\nDisk Space Used: "
-message+="$( df -h | grep $disk | awk '{ print $5 }' | sed 's/G//g' )"
+message+="$( df -h | grep -w $disk | awk '{ print $5 }' | sed 's/G//g' )"
 message+="\n\nServices:\n==================\n"
 
 for i in "${services[@]}"; do
