@@ -130,7 +130,7 @@ BTKask 'Would you like to install sysstat (System Statistics)... ?'
 [[ ${btkYN} == 'y' ]] && install+=('sysstat') || echo 'No sysstat for you then...'
 BTKask 'Would you like to install msmtp-mta (simple server email), rather than Postfix... ?'
 if [[ ${btkYN} == 'y' ]]; then 
-  install+=('msmtp-mta bsd-mailx')
+  install+=('msmtp-mta s-nail')
   BTKask 'Would you like to install logwatch... ?'
   [[ ${btkYN} == 'y' ]] && install+=('logwatch') || echo 'No Logwatch for you then...'
 else
@@ -149,7 +149,7 @@ if BTKisInstalled 'sysstat'; then
 fi
 
 if BTKisInstalled 'msmtp-mta'; then
-  BTKheader 's-nail configuration'
+  BTKheader 'msmtp and s-nail configuration'
   BTKinfo "Mail on this server will be sent to an SMTP Server for delivery...${btkReturn}You will need hostname, username and password as well as port number (usually 587)."
   BTKaskConfirm 'SMTP Server Hostname'
   mtahost=$btkAnswerEng
@@ -171,8 +171,7 @@ if BTKisInstalled 'msmtp-mta'; then
   BTKaskConfirm 'From email address, y for root email or input another email address.'
   [[ $btkAnswerEng == 'y' ]] && mtafrom=$mtaroot || mtafrom=$btkAnswerEng
   
-  echo "
-defaults
+  echo "defaults
 ############
 tls on
 tls_trust_file /etc/ssl/certs/ca-certificates.crt
@@ -194,17 +193,18 @@ aliases /etc/aliases
   chmod 600 /root/.msmtprc
   BTKcmdCheck 'chmod /root/.msmtprc 600.'
 
-  echo "
-set sendmail="/usr/bin/msmtp"
+  echo "#set sendmail="/usr/bin/msmtp"
 set mta="/usr/bin/msmtp"
   " >> /root/.mailrc
   BTKcmdCheck 'configure /root/.mailrc'
 
   chmod 600 /root/.mailrc
   BTKcmdCheck 'chmod /root/.mailrc 600.'
+  
+  ln -s /usr/bin/s-nail /usr/bin/mail
+  BTKcmdCheck 'link s-nail to mail command.'
 
-  echo "
-root: $mtaroot
+  echo "root: $mtaroot
 default: root
 " >> /etc/aliases
   BTKcmdCheck 'Write root email address into aliases file.'
@@ -226,8 +226,7 @@ Service = All
   
   BTKpause
   BTKheader 'Configure Unattended Upgrades.'
-  echo '
-Unattended-Upgrade::Mail "root";
+  echo 'Unattended-Upgrade::Mail "root";
 Unattended-Upgrade::MailReport "always";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 Unattended-Upgrade::Automatic-Reboot "false";
@@ -236,7 +235,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
   BTKcmdCheck 'Enable unattended upgrades to send mail and not reboot'
   
   BTKpause
-  BTKheader 'Install cron jobs...'
+  BTKheader 'Install cron files and jobs...'
   mkdir -p /root/bums/cron/graphs
   BTKcmdCheck 'Make cron/graphs Directory.'
 
