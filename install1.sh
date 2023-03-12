@@ -4,9 +4,11 @@ vtext='1.00'
 usetext='This script is requires a clean
   install of Ubuntu, at least version 22.04.
   This script sets up a simple basic server
-  with the option of a basic email capacity (msmtp-mta and mailx),
-  You will need to run install2.sh if you want a fully
-  fledged MTA (Postfix). msmtp is best used in
+  instance with the option of basic email sending
+  capacity (msmtp-mta and s-nail).
+  You will need to run install2.sh after install1.sh
+  if you want a fully fledged MTA (Postfix).
+  msmtp is best used in
   scenarios that do not need to receive mail,
   just send occasional mail. Examples
   include DNS Server, Backup or other storage
@@ -123,188 +125,6 @@ else
   echo 'Looks like you already have swap enabled...'
 fi
 
-BTKheader 'Install Packages'
-echo 'Looks like it is time to install a few packages...'
-install=()
-BTKask 'Would you like to install sysstat (System Statistics)... ?'
-[[ ${btkYN} == 'y' ]] && install+=('sysstat') || echo 'No sysstat for you then...'
-BTKask 'Would you like to install msmtp-mta (simple server email), rather than Postfix... ?'
-if [[ ${btkYN} == 'y' ]]; then 
-  install+=('msmtp-mta s-nail')
-  BTKask 'Would you like to install logwatch... ?'
-  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || echo 'No Logwatch for you then...'
-else
-  echo 'You will need to run install2 after reboot in order to install Postfix. Every Server needs an MTA...'
-fi
-echo -e "We will try to install the following software\n${install[@]}\n"
-BTKpause
-BTKinstall ${install[@]}
-BTKpause
-
-if BTKisInstalled 'sysstat'; then
-  echo 'Just enabling sysstat'
-  BTKenable 'sysstat'
-  BTKgetStatus 'sysstat'
-  BTKpause
-fi
-
-if BTKisInstalled 'msmtp-mta'; then
-  BTKheader 'msmtp and s-nail configuration'
-  BTKinfo "Mail on this server will be sent to an SMTP Server for delivery...${btkReturn}You will need hostname, username and password as well as port number (usually 587)."
-  BTKaskConfirm 'SMTP Server Hostname'
-  mtahost=$btkAnswerEng
-  BTKaskConfirm 'SMTP Server Username'
-  mtauser=$btkAnswerEng
-  BTKaskConfirm 'SMTP Server Username Password'
-  mtapass=$btkAnswerEng
-  BTKask 'SMTP Server TLS Port (y for 587, n for 465)'
-  if [[ $btkYN == 'y' ]]; then
-    mtatype='submission'
-    mtaport='587'
-  else
-    mtatype='smtps'
-    mtaport='465'
-  fi
-  BTKinfo 'All email is sent to root, what email address will root send to?'
-  BTKaskConfirm 'Root email address'
-  mtaroot=$btkAnswerEng
-  BTKaskConfirm 'From email address, y for root email or input another email address.'
-  [[ $btkAnswerEng == 'y' ]] && mtafrom=$mtaroot || mtafrom=$btkAnswerEng
-  
-  echo "defaults
-############
-tls on
-tls_trust_file /etc/ssl/certs/ca-certificates.crt
-syslog on
-
-account srvr
-###############
-host ${mtahost}
-port ${mtaport}
-from ${mtafrom}
-auth on
-user ${mtauser}
-password ${mtapass}
-
-account default : srvr
-
-aliases /etc/aliases
-" >> /root/.msmtprc
-  chmod 600 /root/.msmtprc
-  BTKcmdCheck 'chmod /root/.msmtprc 600.'
-
-  echo "#set sendmail="/usr/bin/msmtp"
-set mta="/usr/bin/msmtp"
-  " >> /root/.mailrc
-  BTKcmdCheck 'configure /root/.mailrc'
-
-  chmod 600 /root/.mailrc
-  BTKcmdCheck 'chmod /root/.mailrc 600.'
-  
-  ln -s /usr/bin/s-nail /usr/bin/mail
-  BTKcmdCheck 'link s-nail to mail command.'
-
-  echo "root: $mtaroot
-default: root
-" >> /etc/aliases
-  BTKcmdCheck 'Write root email address into aliases file.'
-  
-  BTKpause
-  
-  if BTKisInstalled 'logwatch'; then
-    BTKheader 'Configure Logwatch'
-    mkdir /var/cache/logwatch
-    echo 'Output = mail
-Format = text
-MailTo = root
-Range = yesterday
-Detail = low
-Service = All
-' > /etc/logwatch/conf/logwatch.conf
-  fi
-  BTKcmdCheck 'logwatch configured...'
-  
-  BTKpause
-  BTKheader 'Configure Unattended Upgrades.'
-  echo 'Unattended-Upgrade::Mail "root";
-Unattended-Upgrade::MailReport "always";
-Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot "false";
-' >> /etc/apt/apt.conf.d/50unattended-upgrades
-
-  BTKcmdCheck 'Enable unattended upgrades to send mail and not reboot'
-  
-  BTKpause
-  BTKheader 'Install cron files and jobs...'
-  mkdir -p /root/bums/cron/graphs
-  BTKcmdCheck 'Make cron/graphs Directory.'
-
-  if BTKisInstalled 'sysstat'; then
-  if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/sysstatReport.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/sysstatReport.sig &&
-  gpg --verify sysstatReport.sig sysstatReport.sh; then
-    rm sysstatReport.sig
-    BTKsuccess 'sysstatReport.sh downloaded and verified...'
-    mv sysstatReport.sh cron/sysstatReport.sh
-    BTKcmdCheck 'Move sysstatReport.sh to cron directory.'
-    chmod +x cron/sysstatReport.sh
-    BTKcmdCheck 'chmod sysstatReport.sh executable.'
-    command="/root/bums/cron/sysstatReport.sh > /dev/null 2>&1"
-    job="30 06 * * * $command"
-    BTKmakeCron "$command" "$job"
-    BTKcmdCheck 'sysstatReport.sh cron installation.'
-  else
-    BTKerror 'sysstatReport.sh failed to download.'
-  fi
-  fi
-
-  if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rebootCheck.sig &&
-  gpg --verify rebootCheck.sig rebootCheck.sh; then
-    rm rebootCheck.sig
-    BTKsuccess 'rebootCheck.sh downloaded and verified...'
-    mv rebootCheck.sh cron/rebootCheck.sh
-    BTKcmdCheck 'Move rebootCheck.sh to cron directory.'
-    chmod +x cron/rebootCheck.sh
-    BTKcmdCheck 'chmod rebootCheck.sh executable.'
-    command="/root/bums/cron/rebootCheck.sh > /dev/null 2>&1"
-    job="@reboot $command"
-    BTKmakeCron "$command" "$job"
-    BTKcmdCheck 'rebootCheck.sh cron installation'
-  else
-    BTKerror 'rebootCheck.sh failed to download...'
-  fi
-
-  if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rblCheck.sig &&
-  gpg --verify rblCheck.sig rblCheck.sh; then
-    rm rblCheck.sig
-    BTKsuccess 'rblCheck.sh downloaded and verified...'
-    mv rblCheck.sh cron/rblCheck.sh
-    BTKcmdCheck 'Move rblCheck.sh to cron directory.'
-    chmod +x cron/rblCheck.sh
-    BTKcmdCheck 'chmod rblCheck.sh executable.'
-    command="/root/bums/cron/rblCheck.sh > /dev/null 2>&1"
-    job="30 07 * * * $command"
-    BTKmakeCron "$command" "$job"
-    BTKcmdCheck 'rblCheck.sh cron installation'
-  else
-    BTKerror 'rblCheck.sh failed to download...'
-  fi
-
-  else
-    echo 'Every Server needs some way to send mail - so you will need to install Postfix.'
-    echo 'Downloading install2.sh, run it after reboot...'
-    if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh; then
-      BTKsuccess 'install2.sh download successful.'
-      chmod +x install2.sh
-      BTKcmdCheck 'chmod install2.sh executable'
-    else
-      echo 'install2.sh download failed.'
-    fi
-  fi
-BTKpause
-
 BTKheader 'Uncomplicated Firewall open ssh and enable.'
 if BTKisInstalled 'ufw'; then
   BTKask 'You have Uncomplicated Firewall (UFW) installed, do you want to allow OpenSSH and Enable.'
@@ -326,6 +146,186 @@ if BTKisInstalled 'ufw'; then
   fi
 else
   BTKwarn 'Uncomplicated firewall not installed.'
+fi
+BTKpause
+
+BTKheader 'Install Packages'
+echo 'Looks like it is time to install a few packages...'
+install=()
+BTKask 'Would you like to install msmtp-mta (simple server email), rather than Postfix... ?'
+if [[ ${btkYN} == 'y' ]]; then 
+  install+=('msmtp-mta s-nail')
+  BTKask 'Would you like to install logwatch... ?'
+  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || echo 'No Logwatch for you then...'
+  BTKask 'Would you like to install sysstat (System Statistics)... ?'
+  [[ ${btkYN} == 'y' ]] && install+=('sysstat') || echo 'No sysstat for you then...'
+  echo -e "We will try to install the following software\n${install[@]}\n"
+  BTKpause
+  BTKinstall ${install[@]}
+  BTKpause
+  if BTKisInstalled 'msmtp-mta'; then
+    if BTKisInstalled 'sysstat'; then
+      echo 'Just enabling sysstat'
+      BTKenable 'sysstat'
+      BTKgetStatus 'sysstat'
+      BTKpause
+    fi
+
+    BTKheader 'msmtp and s-nail configuration'
+    BTKinfo "Mail on this server will be sent to an SMTP Server for delivery...${btkReturn}You will need hostname, username and password as well as port number (usually 587)."
+    BTKaskConfirm 'SMTP Server Hostname'
+    mtahost=$btkAnswerEng
+    BTKaskConfirm 'SMTP Server Username'
+    mtauser=$btkAnswerEng
+    BTKaskConfirm 'SMTP Server Username Password'
+    mtapass=$btkAnswerEng
+    BTKask 'SMTP Server TLS Port (y for 587, n for 465)'
+    if [[ $btkYN == 'y' ]]; then
+      mtatype='submission'
+      mtaport='587'
+    else
+      mtatype='smtps'
+      mtaport='465'
+    fi
+    BTKinfo 'All email is sent to root, what email address will root send to?'
+    BTKaskConfirm 'Root email address'
+    mtaroot=$btkAnswerEng
+    BTKaskConfirm 'From email address, y for root email or input another email address.'
+    [[ $btkAnswerEng == 'y' ]] && mtafrom=$mtaroot || mtafrom=$btkAnswerEng
+  
+    echo "defaults
+############
+tls on
+tls_trust_file /etc/ssl/certs/ca-certificates.crt
+syslog on
+
+account srvr
+###############
+host ${mtahost}
+port ${mtaport}
+from ${mtafrom}
+auth on
+user ${mtauser}
+password ${mtapass}
+
+account default : srvr
+
+aliases /etc/aliases
+" >> /root/.msmtprc
+    chmod 600 /root/.msmtprc
+    BTKcmdCheck 'chmod /root/.msmtprc 600.'
+
+    echo '#set sendmail="/usr/bin/msmtp"
+set mta="/usr/bin/msmtp"
+' >> /root/.mailrc
+    BTKcmdCheck 'configure /root/.mailrc'
+
+    chmod 600 /root/.mailrc
+    BTKcmdCheck 'chmod /root/.mailrc 600.'
+  
+    ln -s /usr/bin/s-nail /usr/bin/mail
+    BTKcmdCheck 'link s-nail to mail command.'
+
+    echo "root: $mtaroot
+default: root
+" >> /etc/aliases
+    BTKcmdCheck 'Write root email address into aliases file.'
+  
+    BTKpause
+  
+    if BTKisInstalled 'logwatch'; then
+      BTKheader 'Configure Logwatch'
+      mkdir /var/cache/logwatch
+      echo 'Output = mail
+Format = text
+MailTo = root
+Range = yesterday
+Detail = low
+Service = All
+' > /etc/logwatch/conf/logwatch.conf
+    fi
+    BTKcmdCheck 'logwatch configured...'
+  
+    BTKpause
+    BTKheader 'Configure Unattended Upgrades.'
+    echo 'Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailReport "always";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+' >> /etc/apt/apt.conf.d/50unattended-upgrades
+
+    BTKcmdCheck 'Enable unattended upgrades to send mail and not reboot'
+  
+    BTKpause
+    BTKheader 'Install cron files and jobs...'
+    mkdir -p /root/bums/cron/graphs
+    BTKcmdCheck 'Make cron/graphs Directory.'
+
+    if BTKisInstalled 'sysstat'; then
+      if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/sysstatReport.sh &&
+        wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/sysstatReport.sig &&
+        gpg --verify sysstatReport.sig sysstatReport.sh; then
+        rm sysstatReport.sig
+        BTKsuccess 'sysstatReport.sh downloaded and verified...'
+        mv sysstatReport.sh cron/sysstatReport.sh
+        BTKcmdCheck 'Move sysstatReport.sh to cron directory.'
+        chmod +x cron/sysstatReport.sh
+        BTKcmdCheck 'chmod sysstatReport.sh executable.'
+        command="/root/bums/cron/sysstatReport.sh > /dev/null 2>&1"
+        job="30 06 * * * $command"
+        BTKmakeCron "$command" "$job"
+        BTKcmdCheck 'sysstatReport.sh cron installation.'
+      else
+        BTKerror 'sysstatReport.sh failed to download.'
+      fi
+    fi
+
+    if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh &&
+      wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rebootCheck.sig &&
+      gpg --verify rebootCheck.sig rebootCheck.sh; then
+      rm rebootCheck.sig
+      BTKsuccess 'rebootCheck.sh downloaded and verified...'
+      mv rebootCheck.sh cron/rebootCheck.sh
+      BTKcmdCheck 'Move rebootCheck.sh to cron directory.'
+      chmod +x cron/rebootCheck.sh
+      BTKcmdCheck 'chmod rebootCheck.sh executable.'
+      command="/root/bums/cron/rebootCheck.sh > /dev/null 2>&1"
+      job="@reboot $command"
+      BTKmakeCron "$command" "$job"
+      BTKcmdCheck 'rebootCheck.sh cron installation'
+    else
+      BTKerror 'rebootCheck.sh failed to download...'
+    fi
+
+    if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &&
+      wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rblCheck.sig &&
+      gpg --verify rblCheck.sig rblCheck.sh; then
+      rm rblCheck.sig
+      BTKsuccess 'rblCheck.sh downloaded and verified...'
+      mv rblCheck.sh cron/rblCheck.sh
+      BTKcmdCheck 'Move rblCheck.sh to cron directory.'
+      chmod +x cron/rblCheck.sh
+      BTKcmdCheck 'chmod rblCheck.sh executable.'
+      command="/root/bums/cron/rblCheck.sh > /dev/null 2>&1"
+      job="30 07 * * * $command"
+      BTKmakeCron "$command" "$job"
+      BTKcmdCheck 'rblCheck.sh cron installation'
+    else
+      BTKerror 'rblCheck.sh failed to download...'
+    fi
+  else
+    BTKerror 'Looks like msmtp-mta failed to install.'
+  fi
+else
+  echo 'Every Server needs some way to send mail - so you will need to run install2.sh to install Postfix.'
+  echo 'Downloading install2.sh, run it after reboot...'
+  if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh; then
+    BTKsuccess 'install2.sh download successful.'
+    chmod +x install2.sh
+    BTKcmdCheck 'chmod install2.sh executable'
+  else
+    echo 'install2.sh download failed.'
+  fi
 fi
 BTKpause
 

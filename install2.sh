@@ -11,7 +11,7 @@ usetext='This script gives you the option
   The Web Server comprises Nginx, with MariaDB and PHP.
   Certbot is also installed.
   
-  You do not have the option to setup only Nginx as a web server does need a fully fledged MTA.
+  You do not have the option to setup only Nginx as a web server needs a fully fledged MTA.
   '
   
 read -r -d '' htext <<-EOF
@@ -36,21 +36,30 @@ done
 clear
 
 if [[ ! -f bashTK ]]; then
-echo 'Please run install1.sh first...'
-exit
+  echo 'Please run install1.sh first...'
+  exit
 fi
 if [[ $( pwd ) != '/root/bums' ]]; then
-echo 'You cannot run this script from here.'
-exit
+  echo 'You cannot run this script from here.'
+  exit
 fi
 
 source bashTK
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e ${usetext}
 
+BTKpause
+
 BTKheader 'Menu Options'
 bmsOptions=("Email Server Only" "Email plus Web Server")
 BMSsimple
+
+if [[ $bmsAnswer == '1' ]]; then
+  installNginx='n'
+  BTKinfo 'Installing Email Services ONLY'
+else
+  installNginx='y'
+  BTKinfo 'Installing Email and Web Services'
+fi
 BTKpause
 
-BTKheader 'Installing Email Server'
