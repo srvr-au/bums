@@ -9,9 +9,9 @@ chmod +x install.sh
 ```
 
 ## What install.sh does...
-make dir /root/bums and change to it
-download script signing public key and install on keyring
-download install1.sh and install.sig and verify
-run install1.sh
+- make dir /root/bums and change to it
+- download script signing public key and install on keyring
+- download install1.sh and install.sig and verify
+- run install1.sh
 
 ## What install1.sh does...
