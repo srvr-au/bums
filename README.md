@@ -35,5 +35,6 @@ You now have a server ready for you to install DNS, Database, rsync etc
 
 ## What install2.sh does
 - Check you have run install1.sh
-- Asks if you want to install POSTFIX Dovecot etc for an email server or POSTFIX and NGINX
+- make sure msmtp-mta is NOT installed
+- Asks if you want to install POSTFIX Dovecot etc for an email server or POSTFIX + NGINX
 - NOT READY YET
