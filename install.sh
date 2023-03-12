@@ -24,6 +24,7 @@ else
   exit
 fi
 echo 'Running install1.sh'
-BTKpause
+echo -e "${btkBlu} Check above lines. Press any key to Clear & Continue.${btkRes}"
+read -n 1 -s
 
 ./install1.sh
