@@ -29,6 +29,7 @@ Uses include : DNS server, Storage Server. Backup Storage. Database Server. etc
 - if you choose no it will download install2.sh to install POSTFIX (and NGINX)
 - if you choose yes it will ask if you want to install sysstat, logwatch, rblCheck, sysstatReport, rebootCheck and configure unattended-upgrades to email you
 - it will verify my scripts and configure everything else.
+- Update system and reboot
 
 You now have a server ready for you to install DNS, Database, rsync etc
 
