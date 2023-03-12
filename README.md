@@ -27,4 +27,12 @@ chmod +x install.sh
 msmtp-mta is great for a server that wont be receiving emails, just generating them.
 Uses include : DNS server, Storage Server. Backup Storage. Database Server. etc
 - if you choose no it will download install2.sh to install POSTFIX (and NGINX)
-- if you choose yes it will ask if you want to install sysstat, logweatch, rblCheck, systatReport, rebootCheck and configure unattended-upgrades to email you
+- if you choose yes it will ask if you want to install sysstat, logwatch, rblCheck, sysstatReport, rebootCheck and configure unattended-upgrades to email you
+- it will verify my scripts and configure everything else.
+
+You now have a server ready for you to install DNS, Database, rsync etc
+
+## What install2.sh does
+- Check you have run install1.sh
+- Asks if you want to install POSTFIX Dovecot etc for an email server or POSTFIX and NGINX
+- NOT READY YET
