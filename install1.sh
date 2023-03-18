@@ -163,6 +163,7 @@ if [[ ${btkYN} == 'y' ]]; then
   BTKpause
   BTKinstall ${install[@]}
   BTKpause
+  
   if BTKisInstalled 'msmtp-mta'; then
     if BTKisInstalled 'sysstat'; then
       echo 'Just enabling sysstat'
@@ -230,107 +231,40 @@ set mta="/usr/bin/msmtp"
 default: root
 " >> /etc/aliases
     BTKcmdCheck 'Write root email address into aliases file.'
-  
     BTKpause
-  
-    if BTKisInstalled 'logwatch'; then
-      BTKheader 'Configure Logwatch'
-      mkdir /var/cache/logwatch
-      echo 'Output = mail
-Format = text
-MailTo = root
-Range = yesterday
-Detail = low
-Service = All
-' > /etc/logwatch/conf/logwatch.conf
-    fi
-    BTKcmdCheck 'logwatch configured...'
-  
-    BTKpause
-    BTKheader 'Configure Unattended Upgrades.'
-    echo 'Unattended-Upgrade::Mail "root";
-Unattended-Upgrade::MailReport "always";
-Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot "false";
-' >> /etc/apt/apt.conf.d/50unattended-upgrades
-
-    BTKcmdCheck 'Enable unattended upgrades to send mail and not reboot'
-  
-    BTKpause
-    BTKheader 'Install cron files and jobs...'
-    mkdir -p /root/bums/cron/graphs
-    BTKcmdCheck 'Make cron/graphs Directory.'
-
-    if BTKisInstalled 'sysstat'; then
-      if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/sysstatReport.sh &&
-        wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/sysstatReport.sig &&
-        gpg --verify sysstatReport.sig sysstatReport.sh; then
-        rm sysstatReport.sig
-        BTKsuccess 'sysstatReport.sh downloaded and verified...'
-        mv sysstatReport.sh cron/sysstatReport.sh
-        BTKcmdCheck 'Move sysstatReport.sh to cron directory.'
-        chmod +x cron/sysstatReport.sh
-        BTKcmdCheck 'chmod sysstatReport.sh executable.'
-        command="/root/bums/cron/sysstatReport.sh > /dev/null 2>&1"
-        job="30 06 * * * $command"
-        BTKmakeCron "$command" "$job"
-        BTKcmdCheck 'sysstatReport.sh cron installation.'
-      else
-        BTKerror 'sysstatReport.sh failed to download.'
-      fi
-    fi
-
-    if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh &&
-      wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rebootCheck.sig &&
-      gpg --verify rebootCheck.sig rebootCheck.sh; then
-      rm rebootCheck.sig
-      BTKsuccess 'rebootCheck.sh downloaded and verified...'
-      mv rebootCheck.sh cron/rebootCheck.sh
-      BTKcmdCheck 'Move rebootCheck.sh to cron directory.'
-      chmod +x cron/rebootCheck.sh
-      BTKcmdCheck 'chmod rebootCheck.sh executable.'
-      command="/root/bums/cron/rebootCheck.sh > /dev/null 2>&1"
-      job="@reboot $command"
-      BTKmakeCron "$command" "$job"
-      BTKcmdCheck 'rebootCheck.sh cron installation'
+    
+    BTKinfo 'Please wait while I grab a needed file...'
+    if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sh &&
+      wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sig &&
+      gpg --verify installHelper.sig installHelper.sh; then
+      BTKsuccess 'File downloaded and verified...'
+      rm installHelper.sig
+      chmod +x installHelper.sh
+      BTKcmdCheck 'chmod installHelper.sh executable'
     else
-      BTKerror 'rebootCheck.sh failed to download...'
+      BTKfatalError 'A needed file failed to download or verify'
     fi
-
-    if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &&
-      wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rblCheck.sig &&
-      gpg --verify rblCheck.sig rblCheck.sh; then
-      rm rblCheck.sig
-      BTKsuccess 'rblCheck.sh downloaded and verified...'
-      mv rblCheck.sh cron/rblCheck.sh
-      BTKcmdCheck 'Move rblCheck.sh to cron directory.'
-      chmod +x cron/rblCheck.sh
-      BTKcmdCheck 'chmod rblCheck.sh executable.'
-      command="/root/bums/cron/rblCheck.sh > /dev/null 2>&1"
-      job="30 07 * * * $command"
-      BTKmakeCron "$command" "$job"
-      BTKcmdCheck 'rblCheck.sh cron installation'
-    else
-      BTKerror 'rblCheck.sh failed to download...'
-    fi
+    BTKpause
+  
+    ./installHelper.sh
   else
-    BTKerror 'Looks like msmtp-mta failed to install.'
+    BTKfatalError 'Looks like msmtp-mta failed to install.'
   fi
 else
-  echo 'Every Server needs some way to send mail - so you will need to run install2.sh to install Postfix.'
-  echo 'Downloading install2.sh, run it after reboot...'
+  BTKinfo 'Every Server needs some way to send mail - so you will need to run install2.sh to install Postfix.'
+  BTKinfo 'Downloading install2.sh, run it after reboot...'
   if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh; then
     BTKsuccess 'install2.sh download successful.'
     chmod +x install2.sh
     BTKcmdCheck 'chmod install2.sh executable'
   else
-    echo 'install2.sh download failed.'
+    BTKerror 'install2.sh download failed.'
   fi
 fi
 BTKpause
 
 BTKheader 'Finish: Upgrade and Reboot'
-echo 'Now we will upgrade all Server Software... then reboot'
+BTKinfo 'Now we will upgrade all Server Software... then reboot'
 BTKpause
 DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
 systemctl reboot
