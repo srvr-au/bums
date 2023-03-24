@@ -86,11 +86,29 @@ echo 'alias srvrup="apt update; apt full-upgrade -y;"
 alias srvrboot="systemctl reboot;"' >> /root/.bash_aliases
 BTKcmdCheck 'Add bash aliases'
 
-echo "Making VIM the default editor and making tabs equal 2 spaces."
+echo "Making VIM the default editor, tabs equal 2 spaces and ssh login info."
 touch /root/.bashrc
-echo "export EDITOR='vim'
+tee -a /root/.bashrc <<'EOF'
+export EDITOR='vim'
 export VISUAL='vim'
-" >> /root/.bashrc
+echo -e "\n=============================="
+echo "$( hostname ) - $( hostname -i )"
+echo ''
+cpus=$( nproc )
+read -r a b c d < /proc/loadavg
+onef=$( bc  <<< "scale=2; $a/$cpus" )
+twof=$( bc  <<< "scale=2; $b/$cpus" )
+threef=$( bc  <<< "scale=2; $c/$cpus" )
+echo "CPU Usage (1 5 15): $onef% $twof% $threef%"
+echo -e "\n            Total Used Free"
+echo "Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
+echo "Memory:     $( free -h --si | grep -w Mem: | awk '{ print $2" "$3" "$4 }' )"
+echo "Swap:       $( free -h --si | grep -w Swap: | awk '{ print $2" "$3" "$4 }' )"
+echo ''
+echo $( grep "updates can be applied immediately." /var/lib/update-notifier/updates-available )
+[[ -f /var/run/reboot-required ]] && cat /var/run/reboot-required
+echo -e "==============================\n"
+EOF
 BTKcmdCheck 'VIM made default editor.'
 
 touch /root/.vimrc
