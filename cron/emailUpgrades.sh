@@ -26,8 +26,11 @@ done
 hostname=$( hostname )
 email='root'
 now=$( date )
-message="$hostname $now upgradable software:\n\n"
 apt update
+message="$hostname $now\n\n"
+[[ -f /var/run/reboot-required ]] && message+="$( cat /var/run/reboot-required )"
+message+=$( grep "updates can be applied immediately." /var/lib/update-notifier/updates-available )
+message+="\n\nUpgradeable Packages"
 message+="$( apt list --upgradable )"
 message+="\n\nUse the command\nsrvrup\nto upgrade packages.\nUse the command\nsrvrboot\nto reboot server."
 message+="\n\nWARNING: Some of these updates may be 'phased distribution' and will be held back from an upgrade."
