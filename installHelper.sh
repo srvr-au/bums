@@ -34,6 +34,7 @@ MailTo = root
 Range = yesterday
 Detail = low
 Service = All
+Service = "-sshd"
 ' > /etc/logwatch/conf/logwatch.conf
 fi
 BTKcmdCheck 'logwatch configured...'
@@ -108,6 +109,8 @@ if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh 
   job="@reboot $command"
   BTKmakeCron "$command" "$job"
   BTKcmdCheck 'rebootCheck.sh cron installation'
+  sed -i "s/srvrhostname/${hostname}/g" '/root/bums/cron/rebootCheck.sh'
+  BTKgrepCheck "${hostname}" '/root/bums/cron/rebootCheck.sh'
 else
   BTKerror 'rebootCheck.sh failed to download...'
 fi
