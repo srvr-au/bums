@@ -24,11 +24,14 @@ in
 esac
 done
 
+myhostname='srvrhostname'
+[[ $( hostname ) != $myhostname ]] && hostnamectl set-hostname $myhostname
+
 hostname=$( hostname )
 email='root'
 now=$( date )
 disk='/'
-services=(ssh unattended-upgrades ufw sysstat nginx php7.4-fpm mariadb postfix dovecot opendkim pdns)
+services=(ssh unattended-upgrades ufw sysstat postfix dovecot opendkim nginx php7.4-fpm mariadb)
 message="$hostname was rebooted at $now\n"
 
 message+="\nMemory usage: \n"
