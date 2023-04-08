@@ -53,6 +53,8 @@ You now have a server ready for you to install DNS, Database, rsync etc
 - Asks if you want to install just email server or email and web server.
 - Web Server option installs and configures Nginx and php-fpm.
 - Email Server option installs and configures Postfix, Dovecot, opendkim, SPF milter
+- spam filtering is done at SMTP, no spam tagging.
+- no anti-virus, users can install on their own device.
 - also a bunch of cron scripts.
 NOT FINISHED
 
