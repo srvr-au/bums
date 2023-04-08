@@ -52,8 +52,9 @@ You now have a server ready for you to install DNS, Database, rsync etc
 - make sure msmtp-mta is NOT installed
 - Asks if you want to install just email server or email and web server.
 - Web Server option installs and configures Nginx and php-fpm.
-- Email Server option installs and configures Postfix Dovecot, opendkim, SPF milder
+- Email Server option installs and configures Postfix, Dovecot, opendkim, SPF milter
 - also a bunch of cron scripts.
+NOT FINISHED
 
 ## User Management Scripts
 - coming soon...
