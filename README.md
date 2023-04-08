@@ -1,5 +1,16 @@
 # Bash Ubuntu Management Scripts
 
+BUMS is a hosting management script, using Bash on Ubuntu.
+I have run hosting servers for well over 25 years.
+I have used cPanel, Webmin and others. They all have the same problems.
+1. When web account is hacked, email is hacked too.
+2. Customers are given way too many freedoms and end up doing stupid things.
+3. Password logins... enough said.
+
+BUMS separates email and web, does not allow customers access and uses SSH keys to login.
+Hosting providers need to stop letting customers dictate how to run servers.
+One thing I learnt was that the CUSTOMER IS ALWAYS WRONG.
+
 Login as root to a clean install of Ubuntu 22.04 or greater
 run the following commands:
 ```
