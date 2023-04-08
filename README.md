@@ -55,7 +55,7 @@ You now have a server ready for you to install DNS, Database, rsync etc
 - Email Server option installs and configures Postfix, Dovecot, opendkim, SPF milter
 - spam filtering is done at SMTP, no spam tagging.
 - no anti-virus, users can install on their own device.
-- POP3 only, no quota, curr mail deleted after one day, new mail after 7 days
+- POP3 only, no quota, cur mail deleted after one day, new mail after 7 days
 - also a bunch of cron scripts.
 
 Allows you to sell mailboxes and on-server aliases
