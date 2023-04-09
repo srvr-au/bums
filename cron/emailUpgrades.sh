@@ -29,7 +29,7 @@ now=$( date )
 apt update
 message="$hostname $now\n\n"
 [[ -f /var/run/reboot-required ]] && message+="$( cat /var/run/reboot-required )"
-message+=$( grep "updates can be applied immediately." /var/lib/update-notifier/updates-available )
+message+=$( grep " can be applied immediately." /var/lib/update-notifier/updates-available )
 message+="\n\nUpgradeable Packages"
 message+="$( apt list --upgradable )"
 message+="\n\nUse the command\nsrvrup\nto upgrade packages.\nUse the command\nsrvrboot\nto reboot server."
