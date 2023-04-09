@@ -105,7 +105,7 @@ echo "Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
 echo "Memory:     $( free -h --si | grep -w Mem: | awk '{ print $2" "$3" "$4 }' )"
 echo "Swap:       $( free -h --si | grep -w Swap: | awk '{ print $2" "$3" "$4 }' )"
 echo ''
-echo $( grep "updates can be applied immediately." /var/lib/update-notifier/updates-available )
+echo $( grep " can be applied immediately." /var/lib/update-notifier/updates-available )
 [[ -f /var/run/reboot-required ]] && cat /var/run/reboot-required
 echo -e "==============================\n"
 EOF
