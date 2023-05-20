@@ -42,6 +42,7 @@ if [[ $( pwd ) != '/root/bums' ]]; then
   cd /root/bums
 fi
 [[ -f bashTK ]] && { echo 'This script can only run once.'; exit; }
+[[ -f install.sh ]] && rm install.sh
 
 echo -e "Please wait while I grab a needed file...\n\n"
 if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK &&
@@ -67,11 +68,9 @@ thisVer=$( lsb_release -rs )
 echo -e "This software is best run on a clean install of Ubuntu, version greater than 22.03"
 [[ $thisOS == 'Ubuntu' ]] && BTKsuccess 'Good, looks like we are running Ubuntu.' || BTKfatalError "The OS is not Ubuntu"
 [[ $(bc -l <<< "$thisVer > 22.03") -eq 1 ]] && BTKsuccess 'Good, looks like we are running the required version.' || BTKfatalError "The Version needs to be greater than 22.04"
-BTKpause
 
-BTKinfo 'Time to update our repository information...'
-apt update
-BTKcmdCheck 'Update Repository'
+BTKpause
+BTKheader 'Operating System Tweaks'
 BTKinfo "The current Hostname is $( hostname )"
 BTKaskConfirm "Enter new Hostname or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && hostnamectl set-hostname $btkAnswer
@@ -115,8 +114,59 @@ touch /root/.vimrc
 echo ':set shiftwidth=2
 :set tabstop=2' >> /root/.vimrc
 BTKcmdCheck 'Set Tab to 2 spaces.'
-BTKpause
 
+BTKpause
+BTKheader 'Check SSH configuration, harden SSH'
+if [[ -f /root/.ssh/authorized_keys ]]; then
+  BTKsuccess 'Looks like you may have an SSH public key installed'
+else
+  BTKwarn 'You have no authorized_keys file, therefore you are not using SSH keys.'
+  while true; do
+    btkMenuOptions=('Paste SSH public key into terminal' 'Create SSH Keypair on server' 'I will do it manually later.')
+    BTKmenu
+    if [[ $btkMenuAnswer == 'a' ]]; then
+      read -p 'Paste your PUBLIC SSH Key here: ' pubKey
+      echo "${pubKey}" > /root/.ssh/authorized_keys
+      if [[ -f /root/.ssh/authorized_keys ]]; then
+        echo 'You now have an auhtorized_keys file, test you can SSH in using keys.'
+        BTKpause
+        break
+      else
+        echo 'Creating an auhtorized_keys file failed, sorry!'
+        BTKpause
+        break
+      fi
+    elif [[ $btkMenuAnswer == 'b' ]]; then
+      pass=$( BTKrandLetters )
+      ssh-keygen -t ed25519 -N ${pass} -C root@${btkHost} -f /root/.ssh/id_ed25519
+      cat /root/.ssh/id_ed25519.pub > /root/.ssh/authorized_keys
+      echo 'Public Key saved in auhtorized_keys file.'
+      echo "Your Private Key Password is : $pass"
+      echo "Your Private Key is : "
+      echo "$( </root/.ssh/id_ed25519 )"
+      echo 'You should copy your Private Key and save it locally and use it to SSH in.'
+      BTKpause
+      break
+    else
+      echo 'You chose to quit or do it manually later'
+      break;
+    fi
+  done
+fi
+pwauth=$( awk '/^PasswordAuthentication / {print $2}' /etc/ssh/sshd_config )
+[[ $pwauth=='yes']] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
+
+echo '
+MaxStartups 2:30:10
+LoginGraceTime 30
+' >> /etc/ssh/sshd_config
+
+BTKpause
+BTKinfo 'Time to update our repository information...'
+apt update
+BTKcmdCheck 'Update Repository'
+
+BTKpause
 swap=$( free -m | grep Swap: | awk '{print $2}' )
 if [[ "$swap" -eq 0 ]]; then
   BTKheader 'Create SWAP (virtual RAM).'
@@ -152,6 +202,7 @@ if BTKisInstalled 'ufw'; then
       # echo "y" | ufw enable
       if ufw --force enable; then
         BTKsuccess 'Firewall enabled.'
+        ufw limit ssh
         ufw status
       else
         BTKerror 'Firewall failed to enable.'
