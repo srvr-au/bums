@@ -31,6 +31,7 @@ chmod +x install.sh
 ## What install1.sh does...
 - download bashTK (my bash toolkit) and bashTK.sig and verify
 - checks you are running ubuntu and at least 22.04
+- Checks your SSH, hardens it and encourages you to use keys over passwords.
 - runs apt update
 - gives opportunity to change hostname and timezone
 - adds aliases to update (srvrup) and reboot (srvrboot)
