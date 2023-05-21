@@ -10,7 +10,7 @@ I have used cPanel, Webmin and others. They all have the same problems.
 BUMS separates email and web, does not allow customers access and uses SSH keys to login.
 Hosting providers need to stop letting customers dictate how to run servers.
 One thing I learnt was that the CUSTOMER IS ALWAYS WRONG.
-BUMS allows you to run your servers so your customers do not do stupid things and therefore successfully have a trouble free experience.
+BUMS allows you to run your servers so your customers do not do stupid things and therefore they will have a trouble free experience.
 
 BUMS configures a lean efficient and secure system.
 
