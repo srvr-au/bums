@@ -62,6 +62,8 @@ You now have a server ready for you to install DNS, Database, rsync etc
 If using an external firewall (most cloud providers do) make sure the following ports are open
 80, 443, 25, 587, 995
 
+Clearly you cannot run Postfix if your Cloud provider is blocking Port 25. Get a new Provider.
+
 Allows you to sell mailboxes and on-server aliases
 and web hosting (static and PHP) disk space
 
