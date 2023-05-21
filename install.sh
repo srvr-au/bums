@@ -4,6 +4,10 @@ echo 'Creating /root/bums for install files.'
 mkdir /root/bums
 cd /root/bums
 
+echo 'Update OS and install vim'
+apt update
+yes | unminimize
+
 echo 'Download and install srvr public key'
 if wget https://srvr-au.bitbucket.io/verifyscript.pubkey &&
   gpg --import verifyscript.pubkey; then
@@ -24,7 +28,7 @@ else
   exit
 fi
 echo 'Running install1.sh'
-echo -e "${btkBlu} Check above lines. Press any key to Clear & Continue.${btkRes}"
+echo -e "Check above lines. Press any key to Clear & Continue."
 read -n 1 -s
 
 ./install1.sh
