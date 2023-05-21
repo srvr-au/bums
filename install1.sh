@@ -154,7 +154,7 @@ else
   done
 fi
 pwauth=$( awk '/^PasswordAuthentication / {print $2}' /etc/ssh/sshd_config )
-[[ $pwauth=='yes']] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
+[[ $pwauth == 'yes' ]] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
 
 echo '
 MaxStartups 2:30:10
