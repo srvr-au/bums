@@ -59,6 +59,9 @@ You now have a server ready for you to install DNS, Database, rsync etc
 - POP3 only, no quota, cur mail deleted after one day, new mail after 7 days
 - also a bunch of cron scripts.
 
+If using an external firewall (most cloud providers do) make sure the following ports are open
+80, 443, 25, 587, 995
+
 Allows you to sell mailboxes and on-server aliases
 and web hosting (static and PHP) disk space
 
