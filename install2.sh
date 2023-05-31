@@ -46,8 +46,6 @@ source bashTK
 [[ $( pwd ) != '/root/bums' ]] && BTKfatalError 'You cannot run this script from here.'
 BTKisInstalled 'msmtp-mta' && BTKfatalError 'msmtp-mta is installed, you cannot have 2 mtas.'
 
-
-source bashTK
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e ${usetext}
 
@@ -89,7 +87,7 @@ Match Group sftpgroup
   X11Forwarding no
   AllowTcpForwarding no
   ChrootDirectory /home
-  ForceCommand internal-sftp  -d %u/public_html/ -u 0022
+#  ForceCommand internal-sftp -d %u/public_html/ -u 0022
 ' >> /etc/ssh/sshd_config
 BTKcmdCheck 'sftpgroup created and chrooted.'
 
@@ -116,9 +114,8 @@ mkdir /etc/skel/php/session
 mkdir /etc/skel/php/wsdlcache
 mkdir -p /etc/skel/php/tmp/misc
 mkdir /etc/skel/php/tmp/uploads
-mkdir /etc/skel/public_html
 
-BTKheader 'Placing files into skel'
+BTKheader 'Placing html files into templates folder'
 
 echo '<!doctype html><html lang="en-au"><head>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -145,7 +142,7 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 
 </body>
 </html>
-' > /etc/skel/public_html/index.html
+' > /root/bums/templates/index.html
 
 echo '<!doctype html><html lang="en-au"><head><meta name="robots" content="noindex,nofollow,noarchive"><title>Website Error</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><meta charset="utf-8">
 <style type="text/css">
@@ -161,7 +158,7 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </p></div></div>
 </body>
 </html>
-' > /etc/skel/public_html/error.html
+' > /root/bums/templates/error.html
 
 BTKpause
 BTKheader 'Placing files into /var/www'
@@ -207,7 +204,7 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </body>
 </html>' > /var/www/html/index.html
 
-cp -v /etc/skel/public_html/error.html /var/www/html/error.html
+cp -v /root/bums/templates/error.html /var/www/html/error.html
 
 BTKpause
 BTKheader 'Configure Nginx'
@@ -261,6 +258,17 @@ max_ranges 1; # allow a single range header for resumed downloads and to stop la
 
 include /etc/nginx/mime.types;
 default_type application/octet-stream;
+
+#rate limiting
+limit_req_zone $binary_remote_addr zone=NOFLOOD:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=WPRATELIMIT:10m rate=2r/s;
+
+# Security related headers
+add_header X-Xss-Protection "1; mode=block" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "origin-when-cross-origin" always;
+add_header Content-Security-Policy "default-src 'none'; script-src 'self'; connect-src 'self'; img-src 'self'; style-src 'self';";
 
 # SSL Settings
 ssl_protocols TLSv1.2 TLSv1.3;
@@ -332,6 +340,12 @@ include /etc/nginx/conf.d/*.conf;
 include /etc/nginx/sites-enabled/*;
 }
 EOF
+
+BTKinfo 'Install 7g Web Application Firewall'
+wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g-firewall.conf
+mv 7g-firewall.conf /etc/nginx/conf.d/
+wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g.conf
+mv 7g.conf /etc/nginx/snippets/
 
 BTKinfo 'Reload Nginx'
 nginx -t
@@ -449,7 +463,12 @@ add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 root /var/www/html;
 index index.htm index.html index.php;
 server_name srvrdomain;
-location / {try_files $uri $uri/ =404;}
+include /etc/nginx/snippets/7g.conf;
+location / {
+  try_files $uri $uri/ =404;
+  limit_except GET HEAD POST { deny all; }
+  limit_req zone=NOFLOOD burst=30 nodelay;
+}
 location ~ \.php$ {
 fastcgi_pass unix:/var/run/php/php8.1-fpm.sock;
 include fastcgi.conf;
@@ -460,6 +479,9 @@ include fastcgi.conf;
 }
 location /nginx-srvrXXXXX {
 stub_status on;
+}
+location ~ /\. {
+  deny all;
 }
 location = /error.html {
   ssi on;
@@ -596,7 +618,7 @@ mkdir /root/bums/templates
 
 echo 'SANS="www.srvrdomain"
 USE_SINGLE_ACL="true"
-ACL=(/home/srvruser/public_html/.well-known/acme-challenge)
+ACL=(/home/srvruser/srvrdomain/.well-known/acme-challenge)
 TOKEN_USER_ID="srvruser:srvruser"
 DOMAIN_KEY_LOCATION="/root/bums/ssl/srvrdomain/privkey.pem"
 DOMAIN_CHAIN_LOCATION="/root/bums/ssl/srvrdomain/fullchain.pem"
@@ -653,7 +675,7 @@ env[TEMP] = /home/srvruser/php/tmp
 echo 'server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/public_html;
+root /home/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 
@@ -666,7 +688,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/public_html;
+  root /home/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -690,7 +712,7 @@ echo 'server {
 server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/public_html;
+root /home/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 location / {try_files $uri $uri/ =404;}
@@ -698,7 +720,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/public_html;
+  root /home/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -724,10 +746,15 @@ ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
 ssl_stapling on;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 
-root /home/srvruser/public_html;
+root /home/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
-location / {try_files $uri $uri/ =404;}
+include /etc/nginx/snippets/7g.conf;
+location / {
+  try_files $uri $uri/ =404;
+  limit_except GET HEAD POST { deny all; }
+  limit_req zone=NOFLOOD burst=30 nodelay;
+}
 location ~ \.php$ {
   fastcgi_pass unix:/run/php/php8.1-fpm-srvruser.sock;
   include fastcgi.conf;
@@ -739,11 +766,14 @@ location ~ ^/fpm-srvrXXXXX$ {
 location /nginx-srvrXXXXX {
   stub_status on;
 }
+location ~ /\. {
+  deny all;
+}
 location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/public_html;
+  root /home/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -766,7 +796,7 @@ echo 'server {
 server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/public_html;
+root /home/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 location / {try_files $uri $uri/ =404;}
@@ -774,7 +804,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/public_html;
+  root /home/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -800,21 +830,132 @@ ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
 ssl_stapling on;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 
-root /home/srvruser/public_html;
+root /home/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
-location / {try_files $uri $uri/ =404;}
-
-#sslEditTag#
-
+include /etc/nginx/snippets/7g.conf;
+location / {
+  try_files $uri $uri/ =404;
+  limit_except GET HEAD POST { deny all; }
+  limit_req zone=NOFLOOD burst=30 nodelay;
+  # enable permalinks
+  try_files $uri $uri/ /index.php?$args;
+}
+location ~ \.php$ {
+  fastcgi_pass unix:/run/php/php8.1-fpm-srvruser.sock;
+  include fastcgi.conf;
+}
+location ~ ^/fpm-srvrXXXXX$ {
+  fastcgi_pass unix:/run/php/php8.1-fpm-srvruser.sock;
+  include fastcgi.conf;
+}
 location /nginx-srvrXXXXX {
   stub_status on;
+}
+location ~ /\. {
+  deny all;
 }
 location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/public_html;
+  root /home/srvruser/srvrdomain;
+}
+
+# Browser Caching
+location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|flv|swf|ttf|eot|svg|woff)$ {
+  access_log        off;
+  log_not_found     off;
+  expires           30d;
+}
+
+# wordpress specific
+location ~* /xmlrpc.php$ {
+  deny all;
+  access_log off;
+  log_not_found off;
+  return 444;
+}
+location ~* /(?:uploads|files|wp-content|wp-includes)/.*.php$ {
+  deny all;
+  access_log off;
+  log_not_found off;
+}
+location ~ \wp-login.php$ {
+  limit_req zone=WPRATELIMIT burst=4 nodelay;
+}
+# Deny public access to wp-config.php
+location ~* wp-config.php {
+  deny all;
+}
+
+#443EditTag#
+
+}
+' > /root/bums/templates/80443wp.tmpl
+
+echo 'server {
+  server_name www.srvrdomain;
+  return 301 https://srvrdomain$request_uri;
+}
+
+server {
+listen 80;
+listen [::]:80;
+root /home/srvruser/srvrdomain;
+index index.htm index.html index.php;
+server_name srvrdomain;
+location / {try_files $uri $uri/ =404;}
+location = /error.html {
+  ssi on;
+  internal;
+  auth_basic off;
+  root /home/srvruser/srvrdomain;
+}
+
+# Browser Caching
+location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|flv|swf|ttf|eot|svg|woff)$ {
+  access_log        off;
+  log_not_found     off;
+  expires           30d;
+}
+
+# Redirect to https
+return 302 https://$host$request_uri;
+
+#80EditTag#
+
+}
+
+server {
+listen 443 ssl http2;
+listen [::]:443 ssl http2;
+
+ssl_certificate /root/bums/ssl/srvrdomain/fullchain.pem;
+ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
+ssl_stapling on;
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
+
+root /home/srvruser/srvrdomain;
+index index.htm index.html index.php;
+server_name srvrdomain;
+include /etc/nginx/snippets/7g.conf;
+location / {
+  try_files $uri $uri/ =404;
+  limit_except GET HEAD POST { deny all; }
+  limit_req zone=NOFLOOD burst=30 nodelay;
+}
+location /nginx-srvrXXXXX {
+  stub_status on;
+}
+location ~ /\. {
+  deny all;
+}
+location = /error.html {
+  ssi on;
+  internal;
+  auth_basic off;
+  root /home/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -866,6 +1007,13 @@ expect eof
 ")
 echo 'Done!'
 BTKinfo 'If no errors it was a success!'
+
+BTKpause
+BTKheader 'Install wp cli for Wordpress Management'
+https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+chmod +x wp-cli.phar
+mv wp-cli.phar /usr/local/bin/wp
+wp --info
 
 BTKpause
 BTKheader 'Install Quota for Nginx users'
@@ -1384,12 +1532,60 @@ systemctl reload dovecot
 ufw allow 25/tcp
 ufw limit 587/tcp,995/tcp
 
-command="doveadm -Dv expunge -F /etc/dovecot/usernames mailbox '*' NEW savedbefore 7d"
+command="doveadm expunge -F /etc/dovecot/usernames mailbox '*' NEW savedbefore 7d"
 job="15 07 * * * $command"
 BTKmakeCron "$command" "$job"
 
-command="doveadm -Dv expunge -F /etc/dovecot/usernames mailbox '*' SEEN savedbefore 1d"
-job="20 07 * * * $command"
+command="doveadm expunge -F /etc/dovecot/usernames mailbox '*' SEEN savedbefore 1d"
+job="45 07 * * * $command"
+BTKmakeCron "$command" "$job"
+
+tee /root/bums/cron/getUsage.sh <<'EOF' >/dev/null
+#!/bin/bash
+
+vtext='1.00'
+usetext='Runs from cron and emails disk usage
+of /home and /home2'
+
+read -r -d '' htext <<-EOF
+-------------------------
+  Usage: ${0##*/} [options]
+  Version: ${vtext}
+-------------------------
+  [-v]  Output Script Version
+  [-h]  Output Help
+-------------------------
+  Use: ${usetext}
+  
+EOF
+
+while getopts 'vh' option; do
+case "${option}"
+in
+  v) echo $vtext; exit 1;;
+  h) clear; echo "$htext"; exit 1;;
+esac
+done
+
+hostname=$( hostname )
+email='root'
+now=$( date )
+
+message="$hostname Disk Usage Report at $now\n"
+message+="\n            Total Used Free\n"
+message+="Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
+message+="\n\nWeb Disk Usage /home\n"
+message+=$( du -h --max-depth=2 /home )
+message+="\n\nEmail Disk Usage /home2\n"
+message+=$( du -h --max-depth=2 /home2 )
+
+echo -e "$message" | mail -s "$hostname Disk Usage" $email
+EOF
+
+chmod +x /root/bums/cron/getUsage.sh
+
+command="/root/bums/cron/getUsage.sh > /dev/null 2>&1"
+job="00 08 * * * $command"
 BTKmakeCron "$command" "$job"
 
 BTKheader 'Time to reboot'
