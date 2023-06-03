@@ -42,52 +42,108 @@ if [[ $( pwd ) != '/root/bums' ]]; then
   cd /root/bums
 fi
 [[ -f bashTK ]] && { echo 'This script can only run once.'; exit; }
-[[ -f install.sh ]] && rm install.sh
+[[ -f install.sh ]] && rm install.sh 
 
-echo -e "Please wait while I grab a needed file...\n\n"
-if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK &&
-  wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK.sig &&
-  gpg --verify bashTK.sig bashTK; then
+echo 'Please wait while I grab bashTK (Bash ToolKit) file...'
+if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK.sig &>/dev/null &&
+  gpg --verify bashTK.sig bashTK &>/dev/null; then
   rm bashTK.sig
-  echo -e "\n\nFile downloaded and verified, press any key to clear and continue"
+  source bashTK
+  BTKsuccess 'bashTK downloaded, verified and loaded, press any key to clear and continue...'
   read -n 1 -s
   clear
 else
-  echo 'Fatal Error! exiting...'
+  echo 'Fatal Error! Exiting...'
   exit
 fi
 
-source bashTK
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e "${usetext}\n\n"
-BTKpause
 
+BTKpause
 BTKheader 'Initial Server Check'
 thisOS=$( lsb_release -is )
 thisVer=$( lsb_release -rs )
-echo -e "This software is best run on a clean install of Ubuntu, version greater than 22.03"
+BTKinfo 'This software is best run on a clean install of Ubuntu, version greater than 22.03'
 [[ $thisOS == 'Ubuntu' ]] && BTKsuccess 'Good, looks like we are running Ubuntu.' || BTKfatalError "The OS is not Ubuntu"
 [[ $(bc -l <<< "$thisVer > 22.03") -eq 1 ]] && BTKsuccess 'Good, looks like we are running the required version.' || BTKfatalError "The Version needs to be greater than 22.04"
 
 BTKpause
+BTKheader 'Check SSH configuration, harden SSH'
+if [[ -s /root/.ssh/authorized_keys ]]; then
+  BTKsuccess 'Looks like you may have an SSH public key installed'
+else
+  touch /root/.ssh/authorized_keys
+  BTKwarn 'You have an empty authorized_keys file, therefore you are not using SSH keys.'
+  while true; do
+    btkMenuOptions=('Paste SSH public key into terminal' 'Create SSH Keypair on server' 'I will do it manually later.')
+    BTKmenu
+    if [[ $btkMenuAnswer == 'a' ]]; then
+      read -p 'Paste your PUBLIC SSH Key here: ' pubKey
+      echo "${pubKey}" >> /root/.ssh/authorized_keys
+      if [[ -s /root/.ssh/authorized_keys ]]; then
+        echo 'You now have an authorized_keys file, test you can SSH in using keys.'
+        BTKpause
+        break
+      else
+        echo 'Installing your key failed, sorry!'
+        BTKpause
+        break
+      fi
+    elif [[ $btkMenuAnswer == 'b' ]]; then
+      pass=$( BTKrandLetters )
+      ssh-keygen -t ed25519 -N ${pass} -C root@${btkHost} -f /root/.ssh/id_ed25519 &>/dev/null
+      cat /root/.ssh/id_ed25519.pub >> /root/.ssh/authorized_keys
+      [[ -s /root/.ssh/authorized_keys ]] && BTKsuccess 'Public Key saved in authorized_keys file.' || BTKwarn 'Public Key not saved in authorized key file, do it manually.'
+      BTKinfo 'Your Private Key is located at /root/.ssh/id_ed25519'
+      BTKinfo 'Your Public Key is located at /root/.ssh/id_ed25519.pub'
+      echo "Your Private Key Password is : $pass"
+      echo "Your Private Key is : "
+      echo "$( </root/.ssh/id_ed25519 )"
+      echo 'You should copy your Private Key and Password and save it locally and use it to SSH in.'
+      BTKpause
+      break
+    else
+      echo 'You chose to quit or do it manually later'
+      break;
+    fi
+  done
+fi
+pwauth=$( awk '/^PasswordAuthentication / {print $2}' /etc/ssh/sshd_config )
+[[ $pwauth == 'yes' ]] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
+
+echo '
+MaxStartups 2:30:10
+LoginGraceTime 30
+' >> /etc/ssh/sshd_config
+BTKcmdCheck 'SSH hardened.'
+
+BTKpause
 BTKheader 'Operating System Tweaks'
+BTKinfo 'Time to update our repository information...'
+apt update &>/dev/null
+BTKcmdCheck 'Update Repository'
+
 BTKinfo "The current Hostname is $( hostname )"
 BTKaskConfirm "Enter new Hostname or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && hostnamectl set-hostname $btkAnswer
 BTKinfo "The current Hostname is $( hostname )"
+
 BTKinfo "The current Timezone info is\n$( timedatectl )"
 BTKaskConfirm "Enter new Timezone or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && timedatectl set-timezone $btkAnswer
 BTKinfo "The current Timezone info is\n$( timedatectl )"
+
 BTKinfo "Adding a couple of alises...\nThe Command srvrup will upgrade the server\nThe Command srvrboot will reboot the server."
 touch /root/.bash_aliases
 echo 'alias srvrup="apt update; apt full-upgrade -y;"
 alias srvrboot="systemctl reboot;"' >> /root/.bash_aliases
 BTKcmdCheck 'Add bash aliases'
 
-echo "Making VIM the default editor, tabs equal 2 spaces and ssh login info."
+BTKinfo 'Making VIM the default editor, tabs equal 2 spaces and ssh login info.'
 touch /root/.bashrc
-tee -a /root/.bashrc <<'EOF'
+tee -a /root/.bashrc <<'EOF' >/dev/null
 export EDITOR='vim'
 export VISUAL='vim'
 echo -e "\n=============================="
@@ -116,60 +172,9 @@ echo ':set shiftwidth=2
 BTKcmdCheck 'Set Tab to 2 spaces.'
 
 BTKpause
-BTKheader 'Check SSH configuration, harden SSH'
-if [[ -f /root/.ssh/authorized_keys ]]; then
-  BTKsuccess 'Looks like you may have an SSH public key installed'
-else
-  BTKwarn 'You have no authorized_keys file, therefore you are not using SSH keys.'
-  while true; do
-    btkMenuOptions=('Paste SSH public key into terminal' 'Create SSH Keypair on server' 'I will do it manually later.')
-    BTKmenu
-    if [[ $btkMenuAnswer == 'a' ]]; then
-      read -p 'Paste your PUBLIC SSH Key here: ' pubKey
-      echo "${pubKey}" > /root/.ssh/authorized_keys
-      if [[ -f /root/.ssh/authorized_keys ]]; then
-        echo 'You now have an auhtorized_keys file, test you can SSH in using keys.'
-        BTKpause
-        break
-      else
-        echo 'Creating an auhtorized_keys file failed, sorry!'
-        BTKpause
-        break
-      fi
-    elif [[ $btkMenuAnswer == 'b' ]]; then
-      pass=$( BTKrandLetters )
-      ssh-keygen -t ed25519 -N ${pass} -C root@${btkHost} -f /root/.ssh/id_ed25519
-      cat /root/.ssh/id_ed25519.pub > /root/.ssh/authorized_keys
-      echo 'Public Key saved in auhtorized_keys file.'
-      echo "Your Private Key Password is : $pass"
-      echo "Your Private Key is : "
-      echo "$( </root/.ssh/id_ed25519 )"
-      echo 'You should copy your Private Key and save it locally and use it to SSH in.'
-      BTKpause
-      break
-    else
-      echo 'You chose to quit or do it manually later'
-      break;
-    fi
-  done
-fi
-pwauth=$( awk '/^PasswordAuthentication / {print $2}' /etc/ssh/sshd_config )
-[[ $pwauth == 'yes' ]] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
-
-echo '
-MaxStartups 2:30:10
-LoginGraceTime 30
-' >> /etc/ssh/sshd_config
-
-BTKpause
-BTKinfo 'Time to update our repository information...'
-apt update
-BTKcmdCheck 'Update Repository'
-
-BTKpause
+BTKheader 'Check SWAP (virtual RAM).'
 swap=$( free -m | grep Swap: | awk '{print $2}' )
 if [[ "$swap" -eq 0 ]]; then
-  BTKheader 'Create SWAP (virtual RAM).'
   BTKinfo 'Looks like you have no swap. In this age of Super fast SSD, allocating some disk space to swap makes sense.'
   ram=$( free -m | grep Mem: | awk '{print $2}' )
   BTKinfo "You have $ram mb of RAM and below is your Disk Usage."
@@ -188,12 +193,12 @@ if [[ "$swap" -eq 0 ]]; then
   else
     BTKinfo 'You chose not to enable Swap.'
   fi
-  BTKpause
 else
   echo 'Looks like you already have swap enabled...'
 fi
 
-BTKheader 'Uncomplicated Firewall open ssh and enable.'
+BTKpause
+BTKheader 'Uncomplicated Firewall - open ssh and enable.'
 if BTKisInstalled 'ufw'; then
   BTKask 'You have Uncomplicated Firewall (UFW) installed, do you want to allow OpenSSH and Enable.'
   if [[ $btkYN == 'y' ]]; then
@@ -203,6 +208,7 @@ if BTKisInstalled 'ufw'; then
       if ufw --force enable; then
         BTKsuccess 'Firewall enabled.'
         ufw limit ssh
+        BTKinfo 'Below is your UFW status.'
         ufw status
       else
         BTKerror 'Firewall failed to enable.'
@@ -211,31 +217,31 @@ if BTKisInstalled 'ufw'; then
       BTKerror 'Firewall failed to allow OpenSSH and NOT enabled.'
     fi
   else
-    echo 'OK, no Uncomplicated Firewall for you then...'
+    BTKwarn 'OK, no Uncomplicated Firewall for you then...'
   fi
 else
   BTKwarn 'Uncomplicated firewall not installed.'
 fi
-BTKpause
 
+BTKpause
 BTKheader 'Install Packages'
-echo 'Looks like it is time to install a few packages...'
 install=()
 BTKask 'Would you like to install msmtp-mta (simple server email), rather than Postfix... ?'
 if [[ ${btkYN} == 'y' ]]; then 
   install+=('msmtp-mta s-nail')
   BTKask 'Would you like to install logwatch... ?'
-  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || echo 'No Logwatch for you then...'
+  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || BTKwarn 'No Logwatch for you then...'
   BTKask 'Would you like to install sysstat (System Statistics)... ?'
-  [[ ${btkYN} == 'y' ]] && install+=('sysstat') || echo 'No sysstat for you then...'
+  [[ ${btkYN} == 'y' ]] && install+=('sysstat') || BTKwarn 'No sysstat for you then...'
   echo -e "We will try to install the following software\n${install[@]}\n"
   BTKpause
   BTKinstall ${install[@]}
+  
   BTKpause
   
   if BTKisInstalled 'msmtp-mta'; then
     if BTKisInstalled 'sysstat'; then
-      echo 'Just enabling sysstat'
+      BTKinfo 'Just enabling sysstat'
       BTKenable 'sysstat'
       BTKgetStatus 'sysstat'
       BTKpause
@@ -303,9 +309,9 @@ default: root
     BTKpause
     
     BTKinfo 'Please wait while I grab a needed file...'
-    if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sh &&
-      wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sig &&
-      gpg --verify installHelper.sig installHelper.sh; then
+    if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sh &>/dev/null &&
+      wget https://raw.githubusercontent.com/srvr-au/bashTK/main/gpgsigs/installHelper.sig &>/dev/null &&
+      gpg --verify installHelper.sig installHelper.sh &>/dev/null; then
       BTKsuccess 'File downloaded and verified...'
       rm installHelper.sig
       chmod +x installHelper.sh
@@ -322,16 +328,18 @@ default: root
 else
   BTKinfo 'Every Server needs some way to send mail - so you will need to run install2.sh to install Postfix.'
   BTKinfo 'Downloading install2.sh, run it after reboot...'
-  if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh; then
-    BTKsuccess 'install2.sh download successful.'
+  if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh &>/dev/null &&
+    wget https://raw.githubusercontent.com/srvr-au/bashTK/main/gpgsigs/install2.sig &>/dev/null &&
+    gpg --verify install2.sig install2.sh &>/dev/null; then
+    BTKsuccess 'install2.sh downloaded and verified.'
     chmod +x install2.sh
     BTKcmdCheck 'chmod install2.sh executable'
   else
     BTKerror 'install2.sh download failed.'
   fi
 fi
-BTKpause
 
+BTKpause
 BTKheader 'Finish: Upgrade and Reboot'
 BTKinfo 'Now we will upgrade all Server Software... then reboot'
 BTKpause

@@ -41,7 +41,7 @@ if [[ ! -f bashTK ]]; then
   echo 'Please run install1.sh first...'
   exit
 fi
-rm install1.sh
+rm install1.sh > /dev/null 2>&1
 source bashTK
 [[ $( pwd ) != '/root/bums' ]] && BTKfatalError 'You cannot run this script from here.'
 BTKisInstalled 'msmtp-mta' && BTKfatalError 'msmtp-mta is installed, you cannot have 2 mtas.'

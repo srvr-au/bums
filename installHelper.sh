@@ -56,9 +56,9 @@ BTKcmdCheck 'Make cron Directory.'
 
 if BTKisInstalled 'sysstat'; then
   BTKinfo 'Downloading sysstatReport.sh...'
-  if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/sysstatReport.sh &&
-    wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/sysstatReport.sig &&
-    gpg --verify sysstatReport.sig sysstatReport.sh; then
+  if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/sysstatReport.sh &>/dev/null &&
+    wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/sysstatReport.sig &>/dev/null &&
+    gpg --verify sysstatReport.sig sysstatReport.sh &>/dev/null; then
     rm sysstatReport.sig
     BTKsuccess 'sysstatReport.sh downloaded and verified...'
     mkdir /root/bums/cron/graphs
@@ -74,12 +74,12 @@ if BTKisInstalled 'sysstat'; then
     BTKerror 'sysstatReport.sh failed to download.'
   fi
 fi
-BTKpause
 
+BTKpause
 BTKinfo 'Downloading emailUpgrades.sh...'
-if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/emailUpgrades.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/emailUpgrades.sig &&
-  gpg --verify emailUpgrades.sig emailUpgrades.sh; then
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/emailUpgrades.sh &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/emailUpgrades.sig &>/dev/null &&
+  gpg --verify emailUpgrades.sig emailUpgrades.sh &>/dev/null; then
   rm emailUpgrades.sig
   BTKsuccess 'emailUpgrades.sh downloaded and verified...'
   mv emailUpgrades.sh cron/emailUpgrades.sh
@@ -93,12 +93,12 @@ if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/emailUpgrades.s
 else
   BTKerror 'emailUpgrades.sh failed to download.'
 fi
-BTKpause
 
+BTKpause
 BTKinfo 'Downloading rebootCheck.sh...'
-if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rebootCheck.sig &&
-  gpg --verify rebootCheck.sig rebootCheck.sh; then
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rebootCheck.sig &>/dev/null &&
+  gpg --verify rebootCheck.sig rebootCheck.sh &>/dev/null; then
   rm rebootCheck.sig
   BTKsuccess 'rebootCheck.sh downloaded and verified...'
   mv rebootCheck.sh cron/rebootCheck.sh
@@ -114,12 +114,12 @@ if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rebootCheck.sh 
 else
   BTKerror 'rebootCheck.sh failed to download...'
 fi
-BTKpause
 
+BTKpause
 BTKinfo 'Downloading rblCheck.sh...'
-if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &&
-  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rblCheck.sig &&
-  gpg --verify rblCheck.sig rblCheck.sh; then
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/rblCheck.sig &>/dev/null &&
+  gpg --verify rblCheck.sig rblCheck.sh &>/dev/null; then
   rm rblCheck.sig
   BTKsuccess 'rblCheck.sh downloaded and verified...'
   mv rblCheck.sh cron/rblCheck.sh
@@ -133,4 +133,5 @@ if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/rblCheck.sh &&
 else
   BTKerror 'rblCheck.sh failed to download...'
 fi
+
 BTKpause
