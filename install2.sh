@@ -41,42 +41,40 @@ if [[ ! -f bashTK ]]; then
   echo 'Please run install1.sh first...'
   exit
 fi
-rm install1.sh > /dev/null 2>&1
+
+rm install1.sh &>/dev/null
 source bashTK
 [[ $( pwd ) != '/root/bums' ]] && BTKfatalError 'You cannot run this script from here.'
-BTKisInstalled 'msmtp-mta' && BTKfatalError 'msmtp-mta is installed, you cannot have 2 mtas.'
 
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e ${usetext}
 
 BTKpause
-BTKheader 'Menu Options'
-while true; do
-btkMenuOptions=('Email Server Only' 'Email plus Web Server')
-BTKmenu 'y' 'Install2 Main Menu'
-if [[ $btkMenuAnswer == 'a' ]]; then
-  installNginx='n'
-  BTKinfo 'Installing Email Services ONLY'
-  break
-elif [[ $btkMenuAnswer == 'b' ]]; then
-  installNginx='y'
-  BTKinfo 'Installing Email and Web Services'
-  break
+BTKheader 'What to install today...'
+if BTKisInstalled 'msmtp-mta'; then
+  BTKinfo 'You have msmtp-mta already installed, so we will only install Nginx.'
+  softInstall='Nginx'
+  read -r line < /etc/aliases
+  rootEmail=$( echo $line | cut -f2 -d' ' )
 else
-  BTKinfo 'You did not choose an option, exiting'
-  BTKexit
+  BTKinfo 'We will be installing Postfix as you need an MTA...'
+  BTKask 'Do you wish to install Nginx...?'
+  if [[ $btkYN  == 'y' ]]; then
+    softInstall='Both'
+    BTKinfo 'We will install Postfix and Nginx.'
+  else
+    BTKinfo 'We will only install Postfix'
+    softInstall='Postfix'
+  fi
+  BTKinfo 'We need your email address, this will be root address.'
+  BTKaskConfirm 'Please enter your email address...'
+  [[ $btkAnswer == '' ]] && BTKfatalError 'Sorry we do need an email address'
+  rootEmail=$btkAnswer
 fi
-done
-
-BTKpause
-BTKheader 'We need your email address, this will be root address.'
-BTKaskConfirm 'Please enter your email address...'
-[[ $btkAnswer == '' ]] && BTKfatalError 'Sorry we do need an email address'
-email=$btkAnswer
-
+BTKinfo "Root email is $rootEmail"
 mkdir -p /root/bums/ssl/${btkHost}
 
-if [[ installNginx == 'y' ]]; then
+if [[ softInstall == 'Nginx' || softInstall == 'Both' ]]; then
 
 BTKpause
 BTKheader 'Add sftpgroup, chroot sftpgroup to /home'
@@ -92,9 +90,7 @@ Match Group sftpgroup
 BTKcmdCheck 'sftpgroup created and chrooted.'
 
 BTKpause
-BTKheader 'Install nginx, php and mariadb'
-BTKinfo 'Updating Repositories'
-apt update
+BTKheader 'Install nginx, php, sqlite and mariadb'
 install=()
 install='expect nginx php-fpm php-cli php-common php-gd php-mysql php-mbstring php-json php-sqlite3 php-gnupg php-curl php-zip mariadb-server sqlite3'
 
@@ -1041,6 +1037,7 @@ BTKsuccess 'Thats Nginx, php and mysql ready for action!'
 
 fi
 
+if [[ $softInstall == 'Postfix' || $softInstall == 'Both' ]]; then
 BTKpause
 BTKheader 'Install Postfix, Dovecot, opendkim'
 BTKinfo 'Updating Repositories'
@@ -1587,6 +1584,8 @@ chmod +x /root/bums/cron/getUsage.sh
 command="/root/bums/cron/getUsage.sh > /dev/null 2>&1"
 job="00 08 * * * $command"
 BTKmakeCron "$command" "$job"
+
+fi
 
 BTKheader 'Time to reboot'
 BTKpause

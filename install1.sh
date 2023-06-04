@@ -226,6 +226,7 @@ fi
 BTKpause
 BTKheader 'Install Packages'
 install=()
+BTKinfo 'msmtp-mta sends mail via Port 587, it is fine for sending small amounts of email and/or where your Instance has port 25 blocked. If Port 25 is not blocked by your provider or you wish to receive mail, install Postfix via install2.sh instead.'
 BTKask 'Would you like to install msmtp-mta (simple server email), rather than Postfix... ?'
 if [[ ${btkYN} == 'y' ]]; then 
   install+=('msmtp-mta s-nail')
@@ -325,8 +326,12 @@ default: root
   else
     BTKfatalError 'Looks like msmtp-mta failed to install.'
   fi
-else
-  BTKinfo 'Every Server needs some way to send mail - so you will need to run install2.sh to install Postfix.'
+fi
+
+BTKheader 'Install2.sh download.'
+BTKinfo 'Install2.sh will install Nginx web server and/or Postfix MTA.'
+BTKask 'Would you like to download install2.sh...?'
+if [[ ${btkYN} == 'y' ]]; then
   BTKinfo 'Downloading install2.sh, run it after reboot...'
   if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh &>/dev/null &&
     wget https://raw.githubusercontent.com/srvr-au/bashTK/main/gpgsigs/install2.sig &>/dev/null &&
