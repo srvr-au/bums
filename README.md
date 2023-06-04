@@ -40,19 +40,19 @@ chmod +x install.sh
 - if UFW (firewall) installed you can allow openssh and enable the firewall
 - asks if you want to download and install msmtp-mta (a very lightweight mta)
 msmtp-mta is great for a server that wont be receiving emails, just generating them.
-Uses include : DNS server, Storage Server. Backup Storage. Database Server. etc
-- if you choose no it will download install2.sh to install POSTFIX (and NGINX)
+Uses include : DNS server, Storage Server, Backup Storage, Database Server, Web Server where Port 25 is blocked, etc
 - if you choose yes it will ask if you want to install sysstat, logwatch, rblCheck, sysstatReport, rebootCheck and configure unattended-upgrades to install security updates and email you
 - it will verify my scripts and configure everything else.
+- offers to download install2 so you can install Nginx and/or Postfix (if msmtp-mta is not installed).
 - Update system and reboot
 
 You now have a server ready for you to install DNS, Database, rsync etc
 
 ## What install2.sh does
 - Check you have run install1.sh
-- make sure msmtp-mta is NOT installed
-- Asks if you want to install just email server or email and web server.
-- Web Server option installs and configures Nginx and php-fpm.
+- if msmtp is installed you can install nginx else
+- Asks if you want to install just email server or email + web server.
+- Web Server option installs and configures Nginx, php-fpm, mariadb and sqlite.
 - Email Server option installs and configures Postfix, Dovecot, opendkim, SPF milter
 - spam filtering is done at SMTP, no spam tagging.
 - no anti-virus, users can install on their own device.
@@ -62,7 +62,7 @@ You now have a server ready for you to install DNS, Database, rsync etc
 If using an external firewall (most cloud providers do) make sure the following ports are open
 80, 443, 25, 587, 995
 
-Clearly you cannot run Postfix if your Cloud provider is blocking Port 25. Get a new Provider.
+If you are running msmtp-mta because your provider is blocking port 25 then you need to open 80 and 443.
 
 Allows you to sell mailboxes and on-server aliases
 and web hosting (static and PHP) disk space
