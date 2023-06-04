@@ -113,10 +113,11 @@ fi
 pwauth=$( awk '/^PasswordAuthentication / {print $2}' /etc/ssh/sshd_config )
 [[ $pwauth == 'yes' ]] && BTKwarn 'Your SSH config allows Password Authentication, set PasswordAuthentication to no and use SSH keys instead.' || BTKsuccess 'No Password Authentication, very good!'
 
+[[ -f /etc/ssh/sshd_config.d/99-srvr.conf ]] && rm /etc/ssh/sshd_config.d/99-srvr.conf
 echo '
 MaxStartups 2:30:10
 LoginGraceTime 30
-' >> /etc/ssh/sshd_config
+' > /etc/ssh/sshd_config.d/99-srvr.conf
 BTKcmdCheck 'SSH hardened.'
 
 BTKpause
@@ -334,7 +335,7 @@ BTKask 'Would you like to download install2.sh...?'
 if [[ ${btkYN} == 'y' ]]; then
   BTKinfo 'Downloading install2.sh, run it after reboot...'
   if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh &>/dev/null &&
-    wget https://raw.githubusercontent.com/srvr-au/bashTK/main/gpgsigs/install2.sig &>/dev/null &&
+    wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/install2.sig &>/dev/null &&
     gpg --verify install2.sig install2.sh &>/dev/null; then
     BTKsuccess 'install2.sh downloaded and verified.'
     chmod +x install2.sh
