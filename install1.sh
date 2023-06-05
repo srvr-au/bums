@@ -203,12 +203,11 @@ BTKheader 'Uncomplicated Firewall - open ssh and enable.'
 if BTKisInstalled 'ufw'; then
   BTKask 'You have Uncomplicated Firewall (UFW) installed, do you want to allow OpenSSH and Enable.'
   if [[ $btkYN == 'y' ]]; then
-    if ufw allow OpenSSH; then
-      BTKsuccess 'Firewall allow OpenSSH.'
+    if ufw limit 22/tcp &>/dev/null; then
+      BTKsuccess 'Firewall limit port 22/tcp.'
       # echo "y" | ufw enable
       if ufw --force enable; then
         BTKsuccess 'Firewall enabled.'
-        ufw limit ssh
         BTKinfo 'Below is your UFW status.'
         ufw status
       else

@@ -80,13 +80,12 @@ BTKpause
 BTKheader 'Add sftpgroup, chroot sftpgroup to /home'
 groupadd sftpgroup
 BTKcmdCheck 'sftpgroup added.'
-echo '
-Match Group sftpgroup
-  X11Forwarding no
-  AllowTcpForwarding no
-  ChrootDirectory /home
-#  ForceCommand internal-sftp -d %u/public_html/ -u 0022
-' >> /etc/ssh/sshd_config
+echo 'Match Group sftpgroup
+X11Forwarding no
+AllowTcpForwarding no
+ChrootDirectory %h
+ForceCommand internal-sftp
+' >> /etc/ssh/sshd_config.d/99-srvr.conf
 BTKcmdCheck 'sftpgroup created and chrooted.'
 
 BTKpause
