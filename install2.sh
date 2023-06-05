@@ -1572,8 +1572,10 @@ message+="\n            Total Used Free\n"
 message+="Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
 message+="\n\nWeb Disk Usage /home\n"
 message+=$( du -h --max-depth=2 /home )
+if [[ -d /home2 ]]; then
 message+="\n\nEmail Disk Usage /home2\n"
 message+=$( du -h --max-depth=2 /home2 )
+fi
 
 echo -e "$message" | mail -s "$hostname Disk Usage" $email
 EOF
