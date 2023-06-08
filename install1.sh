@@ -140,9 +140,6 @@ BTKcmdCheck 'SSH hardened.'
 
 BTKpause
 BTKheader 'Operating System Tweaks'
-BTKinfo 'Time to update our repository information...'
-apt update &>/dev/null
-BTKcmdCheck 'Update Repository'
 
 BTKinfo "The current Hostname is $( hostname )"
 BTKaskConfirm "Enter new Hostname or enter to leave unchanged."
@@ -150,7 +147,7 @@ BTKaskConfirm "Enter new Hostname or enter to leave unchanged."
 BTKinfo "The current Hostname is $( hostname )"
 
 BTKinfo "The current Timezone info is\n$( timedatectl )"
-BTKaskConfirm "Enter new Timezone or enter to leave unchanged."
+BTKaskConfirm "Enter new Timezone (Australia/Sydney) or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && timedatectl set-timezone $btkAnswer
 BTKinfo "The current Timezone info is\n$( timedatectl )"
 
@@ -252,6 +249,8 @@ if [[ ${btkYN} == 'y' ]]; then
   [[ ${btkYN} == 'y' ]] && install+=('logwatch') || BTKwarn 'No Logwatch for you then...'
   BTKask 'Would you like to install sysstat (System Statistics)... ?'
   [[ ${btkYN} == 'y' ]] && install+=('sysstat') || BTKwarn 'No sysstat for you then...'
+  
+  
   echo -e "We will try to install the following software\n${install[@]}\n"
   BTKpause
   BTKinstall ${install[@]}
@@ -403,6 +402,10 @@ Unattended-Upgrade::Automatic-Reboot "false";
   else
     BTKfatalError 'Looks like msmtp-mta failed to install.'
   fi
+else
+  BTKinfo 'Time to update our repository information...'
+  apt update &>/dev/null
+  BTKcmdCheck 'Update Repository'
 fi
 
 BTKheader 'Install2.sh download.'
@@ -414,6 +417,7 @@ if [[ ${btkYN} == 'y' ]]; then
     wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/install2.sig &>/dev/null &&
     gpg --verify install2.sig install2.sh &>/dev/null; then
     BTKsuccess 'install2.sh downloaded and verified.'
+    rm install2.sig
     chmod +x install2.sh
     BTKcmdCheck 'chmod install2.sh executable'
   else
@@ -427,3 +431,4 @@ BTKinfo 'Now we will upgrade all Server Software... then reboot'
 BTKpause
 DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
 systemctl reboot
+echo 'Please wait for the system to reboot...'
