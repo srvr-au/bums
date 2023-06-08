@@ -58,6 +58,24 @@ else
   exit
 fi
 
+BUMScronDownload(){
+BTKinfo "Downloading ${1}.sh..."
+bumsCommand=''
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/${1}.sh &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/${1}.sig &>/dev/null &&
+  gpg --verify ${1}.sig ${1}.sh &>/dev/null; then
+  rm ${1}.sig
+  BTKsuccess "${1}.sh downloaded and verified..."
+  mv ${1}.sh /root/bums/cron/${1}.sh
+  BTKcmdCheck "Move ${1}.sh to cron directory."
+  chmod +x /root/bums/cron/${1}.sh
+  BTKcmdCheck "chmod ${1}.sh executable."
+  bumsCommand="/root/bums/cron/${1}.sh > /dev/null 2>&1"
+else
+  BTKerror "${1}.sh failed to download..."
+fi
+}
+
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e "${usetext}\n\n"
 
@@ -239,14 +257,7 @@ if [[ ${btkYN} == 'y' ]]; then
   BTKinstall ${install[@]}
   
   BTKpause
-  
   if BTKisInstalled 'msmtp-mta'; then
-    if BTKisInstalled 'sysstat'; then
-      BTKinfo 'Just enabling sysstat'
-      BTKenable 'sysstat'
-      BTKgetStatus 'sysstat'
-      BTKpause
-    fi
 
     BTKheader 'msmtp and s-nail configuration'
     BTKinfo "Mail on this server will be sent to an SMTP Server for delivery...${btkReturn}You will need hostname, username and password as well as port number (usually 587)."
@@ -307,22 +318,88 @@ set mta="/usr/bin/msmtp"
 default: root
 " >> /etc/aliases
     BTKcmdCheck 'Write root email address into aliases file.'
-    BTKpause
     
-    BTKinfo 'Please wait while I grab a needed file...'
-    if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sh &>/dev/null &&
-      wget https://raw.githubusercontent.com/srvr-au/bashTK/main/gpgsigs/installHelper.sig &>/dev/null &&
-      gpg --verify installHelper.sig installHelper.sh &>/dev/null; then
-      BTKsuccess 'File downloaded and verified...'
-      rm installHelper.sig
-      chmod +x installHelper.sh
-      BTKcmdCheck 'chmod installHelper.sh executable'
-    else
-      BTKfatalError 'A needed file failed to download or verify'
-    fi
     BTKpause
+    BTKheader 'Lets configure some scripts'
+    if BTKisInstalled 'sysstat'; then
+      BTKinfo 'Just enabling sysstat'
+      BTKenable 'sysstat'
+      BTKgetStatus 'sysstat'
+    fi
+    if BTKisInstalled 'logwatch'; then
+      BTKinfo 'Configure Logwatch'
+      mkdir /var/cache/logwatch
+      echo 'Output = mail
+Format = text
+MailTo = root
+Range = yesterday
+Detail = low
+Service = All
+Service = "-sshd"
+' > /etc/logwatch/conf/logwatch.conf
+      BTKsuccess '...Done.'
+    fi
+
+    BTKinfo 'Configure Unattended Upgrades.'
+    echo 'Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailReport "always";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+' >> /etc/apt/apt.conf.d/50unattended-upgrades
+    BTKcmdCheck 'Enable unattended upgrades'
+
+    BTKpause
+    BTKheader 'Install cron files and jobs...'
+    mkdir /root/bums/cron
+    BTKcmdCheck 'Make cron Directory.'
+
+    if BTKisInstalled 'sysstat'; then
+      mkdir /root/bums/cron/graphs
+      bumsScript='sysstatReport'
+      BTKinfo "Download and install cron - ${bumsScript}.sh"
+      BUMScronDownload "${bumsScript}"
+      if [[ -n ${bumsCommand} ]]; then
+        bumsJob="30 06 * * * $bumsCommand"
+        BTKmakeCron "$bumsCommand" "$bumsJob"
+        BTKcmdCheck "${bumsScript}.sh cron installation"
+      else
+        BTKerror "${bumsScript}.sh cron job failed to be added."
+      fi
+    fi
+
+    bumsScript='emailUpgrades'
+    BTKinfo "Download and install cron - ${bumsScript}.sh"
+    BUMScronDownload "${bumsScript}"
+    if [[ -n ${bumsCommand} ]]; then
+      bumsJob="30 08 * * * $bumsCommand"
+      BTKmakeCron "$bumsCommand" "$bumsJob"
+      BTKcmdCheck "${bumsScript}".sh cron installation"
+    else
+      BTKerror "${bumsScript}.sh cron job failed to be added."
+    fi
+
+    bumsScript='rebootCheck'
+    BTKinfo "Download and install cron - ${bumsScript}.sh"
+    BUMScronDownload "${bumsScript}"
+    if [[ -n ${bumsCommand} ]]; then
+      bumsJob="@reboot $bumsCommand"
+      BTKmakeCron "$bumsCommand" "$bumsJob"
+      BTKcmdCheck "${bumsScript}".sh cron installation"
+    else
+      BTKerror "${bumsScript}.sh cron job failed to be added."
+    fi
+
+    bumsScript='rblCheck'
+    BTKinfo "Download and install cron - ${bumsScript}.sh"
+    BUMScronDownload "${bumsScript}"
+    if [[ -n ${bumsCommand} ]]; then
+      bumsJob="30 07 * * * $bumsCommand"
+      BTKmakeCron "$bumsCommand" "$bumsJob"
+      BTKcmdCheck "${bumsScript}.sh cron installation"
+    else
+      BTKerror "${bumsScript}.sh cron job failed to be added."
+    fi
   
-    ./installHelper.sh
   else
     BTKfatalError 'Looks like msmtp-mta failed to install.'
   fi

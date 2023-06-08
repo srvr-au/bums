@@ -46,6 +46,24 @@ rm install1.sh &>/dev/null
 source bashTK
 [[ $( pwd ) != '/root/bums' ]] && BTKfatalError 'You cannot run this script from here.'
 
+BUMScronDownload(){
+BTKinfo "Downloading ${1}.sh..."
+bumsCommand=''
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/${1}.sh &>/dev/null &&
+  wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/${1}.sig &>/dev/null &&
+  gpg --verify ${1}.sig ${1}.sh &>/dev/null; then
+  rm ${1}.sig
+  BTKsuccess "${1}.sh downloaded and verified..."
+  mv ${1}.sh /root/bums/cron/${1}.sh
+  BTKcmdCheck "Move ${1}.sh to cron directory."
+  chmod +x /root/bums/cron/${1}.sh
+  BTKcmdCheck "chmod ${1}.sh executable."
+  bumsCommand="/root/bums/cron/${1}.sh > /dev/null 2>&1"
+else
+  BTKerror "${1}.sh failed to download..."
+fi
+}
+
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e ${usetext}
 
@@ -1398,7 +1416,7 @@ BTKcmdCheck 'create opendkim dir in postfix spool'
 chown opendkim:postfix /var/spool/postfix/opendkim
 BTKcmdCheck 'chown dir in spool'
 
-if [[ installNginx == 'n' ]]; then
+if [[ softInstall == 'Postfix' ]]; then
 BTKpause
 BTKheader 'Install Certbot from Snap'
 snap install core
@@ -1445,31 +1463,92 @@ BTKcmdCheck 'public key mailed'
 BTKpause
 BTKheader 'Lets configure some scripts'
 if BTKisInstalled 'pflogsumm'; then
+  BTKinfo 'Installing cron for PostFix Log Summary'
   command="perl /usr/sbin/pflogsumm -e -d yesterday /var/log/mail.log | mail -s \"${btkHost} Postfix Log\" root"
   job="00 07 * * * $command"
   BTKmakeCron "$command" "$job"
-fi
-if BTKisInstalled 'sysstat'; then
-  echo 'Just enabling sysstat'
-  BTKenable 'sysstat'
-  BTKgetStatus 'sysstat'
-  BTKpause
+  BTKsuccess '...Done.'
 fi
 
-BTKinfo 'Please wait while I grab a needed file...'
-  if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sh &&
-    wget https://raw.githubusercontent.com/srvr-au/bashTK/main/installHelper.sig &&
-    gpg --verify installHelper.sig installHelper.sh; then
-    BTKsuccess 'File downloaded and verified...'
-    rm installHelper.sig
-    chmod +x installHelper.sh
-    BTKcmdCheck 'chmod installHelper.sh executable'
-  else
-    BTKfatalError 'A needed file failed to download or verify'
-  fi
+if BTKisInstalled 'sysstat'; then
+  BTKinfo 'Just enabling sysstat'
+  BTKenable 'sysstat'
+  BTKgetStatus 'sysstat'
+fi
+
+if BTKisInstalled 'logwatch'; then
+  BTKinfo 'Configure Logwatch'
+  mkdir /var/cache/logwatch
+  echo 'Output = mail
+Format = text
+MailTo = root
+Range = yesterday
+Detail = low
+Service = All
+Service = "-sshd"
+' > /etc/logwatch/conf/logwatch.conf
+  BTKsuccess '...Done.'
+fi
+
+BTKinfo 'Configure Unattended Upgrades.'
+echo 'Unattended-Upgrade::Mail "root";
+Unattended-Upgrade::MailReport "always";
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false";
+' >> /etc/apt/apt.conf.d/50unattended-upgrades
+BTKcmdCheck 'Enable unattended upgrades'
+
 BTKpause
-  
-./installHelper.sh
+BTKheader 'Install cron files and jobs...'
+mkdir /root/bums/cron
+BTKcmdCheck 'Make cron Directory.'
+
+if BTKisInstalled 'sysstat'; then
+mkdir /root/bums/cron/graphs
+bumsScript='sysstatReport'
+BTKinfo "Download and install cron - ${bumsScript}.sh"
+BUMScronDownload "${bumsScript}"
+if [[ -n ${bumsCommand} ]]; then
+  bumsJob="30 06 * * * $bumsCommand"
+  BTKmakeCron "$bumsCommand" "$bumsJob"
+  BTKcmdCheck "${bumsScript}.sh cron installation"
+else
+  BTKerror "${bumsScript}.sh cron job failed to be added."
+fi
+fi
+
+bumsScript='emailUpgrades'
+BTKinfo "Download and install cron - ${bumsScript}.sh"
+BUMScronDownload "${bumsScript}"
+if [[ -n ${bumsCommand} ]]; then
+  bumsJob="30 08 * * * $bumsCommand"
+  BTKmakeCron "$bumsCommand" "$bumsJob"
+  BTKcmdCheck "${bumsScript}".sh cron installation"
+else
+  BTKerror "${bumsScript}.sh cron job failed to be added."
+fi
+
+bumsScript='rebootCheck'
+BTKinfo "Download and install cron - ${bumsScript}.sh"
+BUMScronDownload "${bumsScript}"
+if [[ -n ${bumsCommand} ]]; then
+  bumsJob="@reboot $bumsCommand"
+  BTKmakeCron "$bumsCommand" "$bumsJob"
+  BTKcmdCheck "${bumsScript}".sh cron installation"
+else
+  BTKerror "${bumsScript}.sh cron job failed to be added."
+fi
+
+bumsScript='rblCheck'
+BTKinfo "Download and install cron - ${bumsScript}.sh"
+BUMScronDownload "${bumsScript}"
+if [[ -n ${bumsCommand} ]]; then
+  bumsJob="30 07 * * * $bumsCommand"
+  BTKmakeCron "$bumsCommand" "$bumsJob"
+  BTKcmdCheck "${bumsScript}.sh cron installation"
+else
+  BTKerror "${bumsScript}.sh cron job failed to be added."
+fi
 
 BTKpause
 BTKheader 'Configure Dovecot'
@@ -1536,56 +1615,19 @@ command="doveadm expunge -F /etc/dovecot/usernames mailbox '*' SEEN savedbefore 
 job="45 07 * * * $command"
 BTKmakeCron "$command" "$job"
 
-tee /root/bums/cron/getUsage.sh <<'EOF' >/dev/null
-#!/bin/bash
-
-vtext='1.00'
-usetext='Runs from cron and emails disk usage
-of /home and /home2'
-
-read -r -d '' htext <<-EOF
--------------------------
-  Usage: ${0##*/} [options]
-  Version: ${vtext}
--------------------------
-  [-v]  Output Script Version
-  [-h]  Output Help
--------------------------
-  Use: ${usetext}
-  
-EOF
-
-while getopts 'vh' option; do
-case "${option}"
-in
-  v) echo $vtext; exit 1;;
-  h) clear; echo "$htext"; exit 1;;
-esac
-done
-
-hostname=$( hostname )
-email='root'
-now=$( date )
-
-message="$hostname Disk Usage Report at $now\n"
-message+="\n            Total Used Free\n"
-message+="Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
-message+="\n\nWeb Disk Usage /home\n"
-message+=$( du -h --max-depth=2 /home )
-if [[ -d /home2 ]]; then
-message+="\n\nEmail Disk Usage /home2\n"
-message+=$( du -h --max-depth=2 /home2 )
 fi
 
-echo -e "$message" | mail -s "$hostname Disk Usage" $email
-EOF
-
-chmod +x /root/bums/cron/getUsage.sh
-
-command="/root/bums/cron/getUsage.sh > /dev/null 2>&1"
-job="00 08 * * * $command"
-BTKmakeCron "$command" "$job"
-
+BTKpause
+BTKheader 'Download, Verify and Install any other cron jobs.'
+bumsScript='getUsage'
+BTKinfo "Download, verify and install cron - ${bumsScript}.sh"
+BUMScronDownload "${bumsScript}""
+if [[ -n ${bumsCommand} ]]; then
+  bumsJob="00 08 * * * $bumsCommand"
+  BTKmakeCron "$bumsCommand" "$bumsJob"
+  BTKcmdCheck "${bumsScript}".sh cron installation"
+else
+  BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
 
 BTKheader 'Time to reboot'
