@@ -92,7 +92,12 @@ fi
 BTKinfo "Root email is $rootEmail"
 mkdir -p /root/bums/ssl/${btkHost}
 
-if [[ softInstall == 'Nginx' || softInstall == 'Both' ]]; then
+if [[ ${softInstall} == 'Nginx' || ${softInstall} == 'Both' ]]; then
+
+BTKpause
+BTKinfo 'Opening ports 80 and 443 in UFW'
+ufw allow 80,443/tcp
+BTKcmdCheck 'Open ports 80 and 443 in UFW'
 
 BTKpause
 BTKheader 'Add sftpgroup, chroot sftpgroup to /home'
@@ -1057,8 +1062,6 @@ fi
 if [[ $softInstall == 'Postfix' || $softInstall == 'Both' ]]; then
 BTKpause
 BTKheader 'Install Postfix, Dovecot, opendkim'
-BTKinfo 'Updating Repositories'
-apt update
 install=()
 install='s-nail postfix postfix-cdb postfix-policyd-spf-python opendkim opendkim-tools dovecot-core dovecot-pop3d'
 BTKask 'Would you like to install logwatch... ?'
@@ -1352,7 +1355,7 @@ BTKheader 'Configure opendkim'
 gpasswd -a postfix opendkim
 BTKcmdCheck 'Add postfix user to opendkim group'
 
-backuporigconfig '/etc/opendkim.conf'
+BTKbackupOrigConfig '/etc/opendkim.conf'
 
 selector="${btkHost//./-}"
 
@@ -1416,7 +1419,7 @@ BTKcmdCheck 'create opendkim dir in postfix spool'
 chown opendkim:postfix /var/spool/postfix/opendkim
 BTKcmdCheck 'chown dir in spool'
 
-if [[ softInstall == 'Postfix' ]]; then
+if [[ ${softInstall} == 'Postfix' ]]; then
 BTKpause
 BTKheader 'Install Certbot from Snap'
 snap install core
@@ -1457,7 +1460,7 @@ BTKenable postfix
 BTKaddRestart opendkim
 BTKaddRestart postfix
 
-mail -s "Public Key" $email < /etc/opendkim/keys/${selector}.txt
+mail -s "Public Key" $rootEmail < /etc/opendkim/keys/${selector}.txt
 BTKcmdCheck 'public key mailed'
 
 BTKpause
@@ -1605,7 +1608,7 @@ BTKfileExists '/etc/dovecot/usernames'
 systemctl reload dovecot
 
 ufw allow 25/tcp
-ufw limit 587/tcp,995/tcp
+ufw limit 587,995/tcp
 
 command="doveadm expunge -F /etc/dovecot/usernames mailbox '*' NEW savedbefore 7d"
 job="15 07 * * * $command"
@@ -1621,7 +1624,7 @@ BTKpause
 BTKheader 'Download, Verify and Install any other cron jobs.'
 bumsScript='getUsage'
 BTKinfo "Download, verify and install cron - ${bumsScript}.sh"
-BUMScronDownload "${bumsScript}""
+BUMScronDownload "${bumsScript}"
 if [[ -n ${bumsCommand} ]]; then
   bumsJob="00 08 * * * $bumsCommand"
   BTKmakeCron "$bumsCommand" "$bumsJob"
@@ -1633,3 +1636,4 @@ fi
 BTKheader 'Time to reboot'
 BTKpause
 systemctl reboot
+BTKsuccess 'Installation complete, rebooting soon...'
