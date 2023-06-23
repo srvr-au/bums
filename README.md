@@ -48,6 +48,70 @@ Uses include : DNS server, Storage Server, Backup Storage, Database Server, Web 
 
 You now have a server ready for you to install DNS, Database, rsync etc
 
+## Before running install2.sh
+If you intend to install nginx you should install quotas. Quotas will stop one user crashing your whole system by using all disk space.
+If you intend to install quotas you should attach a disk to your instance and mount it as /nginx. This will contain all nginx users websites. If you intend to install Postfix you might also like to store all email accounts on a seperate disk mounted as /vmail (no quotas). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups.
+### Procedure
+Using Google Compute as an example...
+
+Create and attach one disk.
+
+If installing quotas install quota modules. First check your kernel
+> uname -r
+
+Google Compute will have a kernel with -gcp at the end, aws and azure are similiar.
+So you need to install the modules ending in -gcp
+Other providers may use generic kernels with no -gcp
+> apt install linux-modules-extra-gcp quota quotatool -y
+
+Reboot to load modules in kernel
+
+Once rebooted check for modules
+> find /lib/modules/ -type f -name '*quota_v*.ko*'
+
+You should find two v1 and v2
+
+Create partition and file system.
+> fdisk -l
+
+Your second disk will probably be named /dev/sdb, third /dev/sdc etc
+Partition /dev/sdb
+> fdisk /dev/sdb
+
+You will have an input. Enter n return then enter to use defaults. Once partition is created you need to write it. Enter w
+
+Create the filesystem
+> mkfs -t ext4 /dev/sdb1
+
+If you wish to use quotas
+> tune2fs -O quota /dev/sdb1
+
+Time to mount the disk
+> mkdir /nginx
+
+> mount /dev/sdb1 /nginx
+
+If using quota
+> quotaon -v /nginx
+
+> quotaon -p
+
+> repquota -s /nginx
+
+Now it is time to edit /etc/fstab so the disks are mounted on reboot
+Get sdb1 UUID
+> blkid
+
+Add this to /etc/fstab using the actual UUID
+> UUID=51444222-wtreyeyey /nginx  ext4  defaults  0 2
+
+Reboot and check everything works. Install2.sh will not attempt to install quotas because it is just too complex.
+
+If you only have one disk, then you cannot use journaled quotas you have to use deprecated quotas. Install modules and quota as above. Then edit /etc/fstab. You need to add `,usrquota,grpquota` to root / filesystem getting something like
+> LABEL=cloudimg-rootfs   /        ext4   defaults,usrquota,grpquota        0 1
+
+Reboot and you should be good. No need to turn quotas on the reboot should do that.
+
 ## What install2.sh does
 - Check you have run install1.sh
 - if msmtp is installed you can install nginx else
