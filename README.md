@@ -52,65 +52,97 @@ You now have a server ready for you to install DNS, Database, rsync etc
 If you intend to install nginx you should install quotas. Quotas will stop one user crashing your whole system by using all disk space.
 If you intend to install quotas you should attach a disk to your instance and mount it as /nginx. This will contain all nginx users websites. If you intend to install Postfix you might also like to store all email accounts on a seperate disk mounted as /vmail (no quotas). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups.
 ### Procedure
-Using Google Compute as an example...
+Using Google Compute as an example... (similar for Amazon and Azure)
 
-Create and attach one disk.
+Create and attach disk/s.
 
-If installing quotas install quota modules. First check your kernel
+identify attached disks
+> lsblk
+
+I see sdb and sdc disks have no parttition
+lets create two partitions on 20gb sdb
+
+set disk features
+> parted -a optimal /dev/sdb mklabel gpt
+
+create first partition
+> parted /dev/sdb mkpart primary ext4 0% 10GB
+
+create 2nd partition
+> parted /dev/sdb mkpart primary ext4 10GB 100%
+
+check your work
+> lsblk
+
+create filesystem with label
+> mkfs.ext4 -L nginx /dev/sdb2
+
+> mkfs.ext4 -L vmail /dev/sdb1
+
+check labels
+> lsblk --fs
+
+all good we just have to mount them now...
+
+***********
+
+I want to install journaled quotas on sdb2 (nginx)
+
+check kernel
 > uname -r
 
-Google Compute will have a kernel with -gcp at the end, aws and azure are similiar.
-So you need to install the modules ending in -gcp
-Other providers may use generic kernels with no -gcp
-> apt install linux-modules-extra-gcp quota quotatool -y
+our kernel has -gcp on the end so...
+> apt install linux-modules-extra-gcp quota
 
-Reboot to load modules in kernel
+you need *-gcp because the kernel is *.gcp (similar for aws and azure)
 
-Once rebooted check for modules
-> find /lib/modules/ -type f -name '*quota_v*.ko*'
+because sdb2 is an unmouted filesystem we can
+> tune2fs -O quota /dev/sdb2
 
-You should find two v1 and v2
+check
+> tune2fs -l /dev/sdb2 | grep -i quota
 
-Create partition and file system.
-> fdisk -l
+all good
 
-Your second disk will probably be named /dev/sdb, third /dev/sdc etc
-Partition /dev/sdb
-> fdisk /dev/sdb
+**************************
 
-You will have an input. Enter n return then enter to use defaults. Once partition is created you need to write it. Enter w
+> mkdir /vmail
 
-Create the filesystem
-> mkfs -t ext4 /dev/sdb1
-
-If you wish to use quotas
-> tune2fs -O quota /dev/sdb1
-
-Time to mount the disk
 > mkdir /nginx
 
-> mount /dev/sdb1 /nginx
+vi /etc/fstab
+add to bottom
 
-If using quota
-> quotaon -v /nginx
+LABEL=nginx     /nginx          ext4    defaults        0 2
 
-> quotaon -p
+LABEL=vmail     /vmail          ext4    defaults        0 2
 
+write and quit
+>reboot
+
+check quotas are working
 > repquota -s /nginx
 
-Now it is time to edit /etc/fstab so the disks are mounted on reboot
-Get sdb1 UUID
-> blkid
+##### If you only have the one filesystem then....
+> apt install linux-image-extra-virtual quota
 
-Add this to /etc/fstab using the actual UUID
-> UUID=51444222-wtreyeyey /nginx  ext4  defaults  0 2
+vi /etc/fstab
 
-Reboot and check everything works. Install2.sh will not attempt to install quotas because it is just too complex.
+add
 
-If you only have one disk, then you cannot use journaled quotas you have to use deprecated quotas. Install modules and quota as above. Then edit /etc/fstab. You need to add `,usrquota,grpquota` to root / filesystem getting something like
-> LABEL=cloudimg-rootfs   /        ext4   defaults,usrquota,grpquota        0 1
+,usrquota,grpquota
 
-Reboot and you should be good. No need to turn quotas on the reboot should do that.
+as so..
+
+LABEL=cloudimg-rootfs   /        ext4   defaults,usrquota,grpquota        0 1
+
+create old deprecated quota files
+> quotacheck -cugm /
+
+> reboot
+
+check quotas are working
+> repquota -s /
 
 ## What install2.sh does
 - Check you have run install1.sh
