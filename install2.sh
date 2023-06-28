@@ -67,6 +67,8 @@ fi
 echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
 echo -e ${usetext}
 
+echo -e "\n\n*** Important:\nIf your instance has an external firewall you should enable port 80 now.\nIf installing Nginx you should enable port 443 as well.\nIf installing Postfix you should enable ports 25, 995 and 587 as well."
+
 BTKpause
 BTKheader 'What to install today...'
 if BTKisInstalled 'msmtp-mta'; then
@@ -90,6 +92,7 @@ else
   rootEmail=$btkAnswer
 fi
 BTKinfo "Root email is $rootEmail"
+
 mkdir -p /root/bums/ssl/${btkHost}
 
 if [[ ${softInstall} == 'Nginx' || ${softInstall} == 'Both' ]]; then
@@ -100,7 +103,8 @@ ufw allow 80,443/tcp
 BTKcmdCheck 'Open ports 80 and 443 in UFW'
 
 BTKpause
-BTKheader 'Add sftpgroup, chroot sftpgroup to /home'
+BTKheader 'Add sftpgroup, chroot sftpgroup to home directory (/nginx)'
+[[ ! -d /nginx && ! -L /nginx ]] && mkdir /nginx
 groupadd sftpgroup
 BTKcmdCheck 'sftpgroup added.'
 echo 'Match Group sftpgroup
@@ -115,6 +119,9 @@ BTKpause
 BTKheader 'Install nginx, php, sqlite and mariadb'
 install=()
 install='expect nginx php-fpm php-cli php-common php-gd php-mysql php-mbstring php-json php-sqlite3 php-gnupg php-curl php-zip mariadb-server sqlite3'
+echo -e "We will try to install the following software\n${install[@]}\n"
+BTKpause
+BTKinstall ${install[@]}
 
 BTKpause
 BTKheader 'Creating skel directories including html and log files'
@@ -132,6 +139,8 @@ mkdir /etc/skel/php/session
 mkdir /etc/skel/php/wsdlcache
 mkdir -p /etc/skel/php/tmp/misc
 mkdir /etc/skel/php/tmp/uploads
+
+mkdir /root/bums/templates
 
 BTKheader 'Placing html files into templates folder'
 
@@ -222,14 +231,14 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </body>
 </html>' > /var/www/html/index.html
 
-cp -v /root/bums/templates/error.html /var/www/html/error.html
+cp /root/bums/templates/error.html /var/www/html/error.html
 
 BTKpause
 BTKheader 'Configure Nginx'
 
 BTKbackupOrigConfig '/etc/nginx/nginx.conf'
 
-tee /etc/nginx/nginx.conf <<'EOF'
+tee /etc/nginx/nginx.conf <<'EOF' >/dev/null
 user www-data;
 worker_processes auto;
 worker_priority 15; # nice nginx so it doesnt use all resources under high load
@@ -368,14 +377,16 @@ mv 7g.conf /etc/nginx/snippets/
 BTKinfo 'Reload Nginx'
 nginx -t
 systemctl reload nginx
-ufw allow http
-ufw allow https
+ufw allow 80/tcp
+ufw allow 443/tcp
 
 BTKpause
 BTKheader 'Installing Hostname SSL Certificate'
 
 curl --silent https://raw.githubusercontent.com/srvrco/getssl/latest/getssl > /root/bums/getssl
 chmod 700 /root/bums/getssl
+
+mkdir /root/.getssl
 
 echo 'CA="https://acme-v02.api.letsencrypt.org"
 FULL_CHAIN_INCLUDE_ROOT="true"
@@ -388,7 +399,7 @@ PRIVATE_KEY_ALG="secp384r1"
 ACCOUNT_KEY="/root/.getssl/account.key"
 ACCOUNT_EMAIL="srvremail"
 ' > /root/.getssl/getssl.cfg
-sed -i "s/srvremail/${email}/" /root/.getssl/getssl.cfg
+sed -i "s/srvremail/${rootEmail}/" /root/.getssl/getssl.cfg
 
 /root/bums/getssl -c "${btkHost}"
 
@@ -408,7 +419,7 @@ sed -i "s/srvrdomain/${btkHost}/g" /root/.getssl/${btkHost}/getssl.cfg
 
 command="/root/bums/getssl -u -a"
 job="30 09 * * MON,THU $command"
-makecronjob "$command" "$job"
+BTKmakeCron "$command" "$job"
 
 BTKpause
 BTKheader 'Setup Nginx server files'
@@ -617,7 +628,7 @@ dateext
 rotate 2
 }' > /etc/logrotate.d/srvrrootlogs
 
-echo '/home/*/logs/*/*.log {
+echo '/nginx/*/logs/*/*.log {
 size 1M
 copytruncate
 dateext
@@ -632,11 +643,10 @@ BTKaddRestart 'php8.1-fpm'
 
 BTKpause
 BTKheader 'Write tmpl files for GetSSL, Nginx and PHP'
-mkdir /root/bums/templates
 
 echo 'SANS="www.srvrdomain"
 USE_SINGLE_ACL="true"
-ACL=(/home/srvruser/srvrdomain/.well-known/acme-challenge)
+ACL=(/nginx/srvruser/srvrdomain/.well-known/acme-challenge)
 TOKEN_USER_ID="srvruser:srvruser"
 DOMAIN_KEY_LOCATION="/root/bums/ssl/srvrdomain/privkey.pem"
 DOMAIN_CHAIN_LOCATION="/root/bums/ssl/srvrdomain/fullchain.pem"
@@ -654,10 +664,10 @@ group = srvruser
 pm = ondemand
 pm.max_children = 2
 pm.status_path = /fpm-srvrXXXXX
-access.log = /home/srvruser/logs/php/access.log
+access.log = /nginx/srvruser/logs/php/access.log
 
 php_admin_value[disable_functions] = exec,passthru,shell_exec,system,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source
-php_admin_value[open_basedir] = /home/srvruser
+php_admin_value[open_basedir] = /nginx/srvruser
 
 php_admin_value[memory_limit] = 128M
 php_admin_value[max_execution_time] = 90
@@ -667,9 +677,9 @@ php_admin_value[post_max_size] = 8M
 php_admin_value[max_input_vars] = 1000
 php_admin_value[expose_php] = false
 php_admin_value[smtp_port] = 587
-php_admin_value[upload_temp_dir] = /home/srvruser/php/tmp/uploads
-php_admin_value[mail.log] = /home/srvruser/logs/php/mail.log
-php_admin_value[error_log] = /home/srvruser/logs/php/error.log
+php_admin_value[upload_temp_dir] = /nginx/srvruser/php/tmp/uploads
+php_admin_value[mail.log] = /nginx/srvruser/logs/php/mail.log
+php_admin_value[error_log] = /nginx/srvruser/logs/php/error.log
 php_admin_value[mail.add_x_header] = true
 php_admin_value[log_errors] = true
 
@@ -678,27 +688,27 @@ php_value[session.cookie_secure] = 1
 php_value[session.cookie_samesite] = Strict
 php_value[session.cookie_httponly] = 1
 php_value[session.save_handler] = files
-php_value[session.save_path]    = /home/srvruser/php/session
-php_value[soap.wsdl_cache_dir]  = /home/srvruser/php/wsdlcache
-php_value[opcache.file_cache]  = /home/srvruser/php/opcache
+php_value[session.save_path]    = /nginx/srvruser/php/session
+php_value[soap.wsdl_cache_dir]  = /nginx/srvruser/php/wsdlcache
+php_value[opcache.file_cache]  = /nginx/srvruser/php/opcache
 
 php_flag[display_errors] = false
 
-env[TMP] = /home/srvruser/php/tmp
-env[TMPDIR] = /home/srvruser/php/tmp
-env[TEMP] = /home/srvruser/php/tmp
+env[TMP] = /nginx/srvruser/php/tmp
+env[TMPDIR] = /nginx/srvruser/php/tmp
+env[TEMP] = /nginx/srvruser/php/tmp
 
 ' > /root/bums/templates/phpuser.tmpl
 
 echo 'server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 
-access_log /home/srvruser/logs/http/access.log;
-error_log /home/srvruser/logs/http/error.log;
+access_log /nginx/srvruser/logs/http/access.log;
+error_log /nginx/srvruser/logs/http/error.log;
 
 location / {try_files $uri $uri/ =404;}
 
@@ -706,7 +716,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -730,7 +740,7 @@ echo 'server {
 server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 location / {try_files $uri $uri/ =404;}
@@ -738,7 +748,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -764,7 +774,7 @@ ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
 ssl_stapling on;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 include /etc/nginx/snippets/7g.conf;
@@ -791,7 +801,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -814,7 +824,7 @@ echo 'server {
 server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 location / {try_files $uri $uri/ =404;}
@@ -822,7 +832,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -848,7 +858,7 @@ ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
 ssl_stapling on;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 include /etc/nginx/snippets/7g.conf;
@@ -877,7 +887,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -920,7 +930,7 @@ echo 'server {
 server {
 listen 80;
 listen [::]:80;
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 location / {try_files $uri $uri/ =404;}
@@ -928,7 +938,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -954,7 +964,7 @@ ssl_certificate_key /root/bums/ssl/srvrdomain/privkey.pem;
 ssl_stapling on;
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
 
-root /home/srvruser/srvrdomain;
+root /nginx/srvruser/srvrdomain;
 index index.htm index.html index.php;
 server_name srvrdomain;
 include /etc/nginx/snippets/7g.conf;
@@ -973,7 +983,7 @@ location = /error.html {
   ssi on;
   internal;
   auth_basic off;
-  root /home/srvruser/srvrdomain;
+  root /nginx/srvruser/srvrdomain;
 }
 
 # Browser Caching
@@ -1028,32 +1038,10 @@ BTKinfo 'If no errors it was a success!'
 
 BTKpause
 BTKheader 'Install wp cli for Wordpress Management'
-https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x wp-cli.phar
 mv wp-cli.phar /usr/local/bin/wp
 wp --info
-
-BTKpause
-BTKheader 'Install Quota for Nginx users'
-BTKinfo 'We will install quota on root partition. We will install old-style rather than journaled quotas. If you wish to use journaled quotas you need to use tune2fs -O quota /dev/sdb1 on unmounted partition. Not possible if you have only root partition. We will use the journaled format... because we can.'
-
-BTKask 'Shall we install quotas for nginx users...'
-if [[ "$btkYN" == 'y' ]]; then
-  install=()
-  install='linux-image-extra-virtual quota'
-  BTKinstall ${install[@]}
-  BTKpause
-  
-  sed -r -i'.bak' 's#(/\s.*defaults)\s#\1,usrjquota=aquota.user,grpjquota=aquota.group,jqfmt=vfsv1 #' /etc/fstab
-  mount -o remount /
-  quotacheck -cugm /
-  quotaon -v /
-  cat /proc/mounts | grep ' / '
-  systemctl daemon-reload
-  repquota -s /
-else
-  echo 'No quotas for you then...'
-fi
 
 BTKsuccess 'Thats Nginx, php and mysql ready for action!'
 
@@ -1094,11 +1082,11 @@ BTKheader 'Configure Postfix'
 
 mkdir /etc/skelempty
 BTKcmdCheck 'Add empty skel for vmail user'
-mkdir /home2
-BTKcmdCheck 'Add /home2 for vmail'
+[[ ! -d /vmail && ! -L /vmail ]] && mkdir /vmail
+BTKcmdCheck 'Add /vmail directory for vmail'
 
 echo 'DSHELL=/usr/sbin/nologin
-DHOME=/home2
+DHOME=/vmail
 GROUPHOMES=no
 LETTERHOMES=no
 SKEL=/etc/skelempty
@@ -1201,7 +1189,7 @@ postscreen_dnsbl_action = enforce
 
 smtputf8_enable = no
 virtual_mailbox_domains = /etc/postfix/vdomains
-virtual_mailbox_base = /home2/vmail
+virtual_mailbox_base = /vmail
 virtual_mailbox_maps = cdb:/etc/postfix/vmailbox
 virtual_alias_maps = cdb:/etc/postfix/valias
 virtual_uid_maps = static:20000
@@ -1430,7 +1418,7 @@ BTKpause
 BTKheader 'Installing Hostname SSL Certificate'
 mkdir /root/bums/helpers
 touch /root/bums/helpers/certbotDeployHook.sh
-tee -a /root/bums/helpers/certbotDeployHook.sh <<'EOF'
+tee -a /root/bums/helpers/certbotDeployHook.sh <<'EOF' >/dev/null
 #!/bin/bash
 
 hostname=$( hostname )
@@ -1560,7 +1548,7 @@ BTKbackupOrigConfig '/etc/dovecot/dovecot.conf'
 echo '#mail_debug = yes
 auth_mechanisms = plain
 first_valid_uid = 1000
-mail_location = maildir:/home2/vmail/%u
+mail_location = maildir:/vmail/%u
 
 protocols = pop3
 pop3_fast_size_lookups = yes
@@ -1592,7 +1580,7 @@ passdb {
 }
 userdb {
   driver = static
-  args = uid=vmail gid=vmail home=/home2/vmail/%u
+  args = uid=vmail gid=vmail home=/vmail/%u
 }
 ' > /etc/dovecot/dovecot.conf
 
@@ -1628,7 +1616,7 @@ BUMScronDownload "${bumsScript}"
 if [[ -n ${bumsCommand} ]]; then
   bumsJob="00 08 * * * $bumsCommand"
   BTKmakeCron "$bumsCommand" "$bumsJob"
-  BTKcmdCheck "${bumsScript}".sh cron installation"
+  BTKcmdCheck "${bumsScript}.sh cron installation"
 else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
