@@ -431,4 +431,4 @@ BTKinfo 'Now we will upgrade all Server Software... then reboot'
 BTKpause
 DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
 systemctl reboot
-echo 'Please wait for the system to reboot...'
+BTKsuccess 'Please wait for the system to reboot...'
