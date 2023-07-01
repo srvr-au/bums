@@ -103,8 +103,11 @@ ufw allow 80,443/tcp
 BTKcmdCheck 'Open ports 80 and 443 in UFW'
 
 BTKpause
-BTKheader 'Add sftpgroup, chroot sftpgroup to home directory (/nginx)'
+BTKheader 'Add /nginx, add sftpgroup, chroot sftpgroup to home directory (/nginx)'
 [[ ! -d /nginx && ! -L /nginx ]] && mkdir /nginx
+BTKcmdCheck '/nginx directory exists.'
+sed -i "s#^DHOME=/home#DHOME=/nginx#" /etc/adduser.conf
+BTKcmdCheck '/etc/adduser.conf changed DHOME to /nginx'
 groupadd sftpgroup
 BTKcmdCheck 'sftpgroup added.'
 echo 'Match Group sftpgroup
