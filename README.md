@@ -12,7 +12,9 @@ Hosting providers need to stop letting customers dictate how to run servers.
 One thing I learnt was that the CUSTOMER IS ALWAYS WRONG.
 BUMS allows you to run your servers so your customers do not do stupid things and therefore they will have a trouble free experience.
 
-BUMS configures a lean efficient and secure system. The full install uses 10gb so a 20gb disk is the minimum.
+BUMS configures a lean efficient and secure system.
+Install1.sh uses about 5gb not counting the swap usage you choose.
+The full install with 4gb swap uses 10gb.
 
 Login as root to a clean install of Ubuntu 22.04 or greater
 run the following commands:
