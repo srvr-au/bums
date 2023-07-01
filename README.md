@@ -147,6 +147,12 @@ check quotas are working
 > repquota -s /
 
 ## What install2.sh does
+Login as root after reboot
+```
+cd bums
+./install2.sh
+```
+
 - Check you have run install1.sh
 - if msmtp is installed you can install nginx else
 - Asks if you want to install just email server or email + web server.
