@@ -104,7 +104,7 @@ BTKcmdCheck 'Open ports 80 and 443 in UFW'
 
 BTKpause
 BTKheader 'Add /nginx, add sftpgroup, chroot sftpgroup to home directory (/nginx)'
-[[ ! -d /nginx && ! -L /nginx ]] && mkdir /nginx
+[[ ! -d /nginx ]] && mkdir /nginx
 BTKcmdCheck '/nginx directory exists.'
 sed -i "s#^DHOME=/home#DHOME=/nginx#" /etc/adduser.conf
 BTKcmdCheck '/etc/adduser.conf changed DHOME to /nginx'
@@ -380,8 +380,6 @@ mv 7g.conf /etc/nginx/snippets/
 BTKinfo 'Reload Nginx'
 nginx -t
 systemctl reload nginx
-ufw allow 80/tcp
-ufw allow 443/tcp
 
 BTKpause
 BTKheader 'Installing Hostname SSL Certificate'
@@ -409,14 +407,16 @@ sed -i "s/srvremail/${rootEmail}/" /root/.getssl/getssl.cfg
 echo 'SANS=""
 USE_SINGLE_ACL="true"
 ACL=(/var/www/html/.well-known/acme-challenge)
-TOKEN_USER_ID="root:root"
+TOKEN_USER_ID="www-data:www-data"
 DOMAIN_KEY_LOCATION="/root/bums/ssl/srvrdomain/privkey.pem"
 DOMAIN_CHAIN_LOCATION="/root/bums/ssl/srvrdomain/fullchain.pem"
 DOMAIN_PEM_LOCATION="/root/bums/ssl/srvrdomain/keyfullchain.pem"
-RELOAD_CMD=('systemctl reload nginx' 'systemctl reload postfix' 'systemctl reload dovecot')
+RELOAD_CMD="systemctl reload serverservices"
 ' > /root/.getssl/${btkHost}/getssl.cfg
 
 sed -i "s/srvrdomain/${btkHost}/g" /root/.getssl/${btkHost}/getssl.cfg
+[[ $softInstall == 'Both' ]] && serverServices='nginx postfix dovecot' || serverServices='nginx'
+sed -i "s/srvrservices/${serverServices}/g" /root/.getssl/${btkHost}/getssl.cfg
 
 /root/bums/getssl -a
 
@@ -511,6 +511,9 @@ include fastcgi.conf;
 }
 location /nginx-srvrXXXXX {
 stub_status on;
+}
+location ~ /\.well-known { 
+  allow all;
 }
 location ~ /\. {
   deny all;
@@ -613,9 +616,10 @@ systemctl daemon-reload
 systemctl reload php8.1-fpm
 systemctl reload nginx
 
-echo '<?php phpinfo(); ?>' > /var/www/html/phpinfo.php
+echo '<?php phpinfo(); ?>' > /var/www/html/srvrphpinfo.php
+chown www-data:www-data /var/www -R
 echo 'Check Nginx and php is working at:'
-echo "https://${btkHost}/phpinfo.php"
+echo "https://${btkHost}/srvrphpinfo.php"
 echo 'Nginx info is here:'
 echo "https://${btkHost}/nginx-${srvrRandom}"
 echo 'PHP info is here:'
@@ -797,6 +801,9 @@ location ~ ^/fpm-srvrXXXXX$ {
 location /nginx-srvrXXXXX {
   stub_status on;
 }
+location ~ /\.well-known { 
+  allow all;
+}
 location ~ /\. {
   deny all;
 }
@@ -882,6 +889,9 @@ location ~ ^/fpm-srvrXXXXX$ {
 }
 location /nginx-srvrXXXXX {
   stub_status on;
+}
+location ~ /\.well-known { 
+  allow all;
 }
 location ~ /\. {
   deny all;
@@ -978,6 +988,9 @@ location / {
 }
 location /nginx-srvrXXXXX {
   stub_status on;
+}
+location ~ /\.well-known { 
+  allow all;
 }
 location ~ /\. {
   deny all;
@@ -1085,7 +1098,7 @@ BTKheader 'Configure Postfix'
 
 mkdir /etc/skelempty
 BTKcmdCheck 'Add empty skel for vmail user'
-[[ ! -d /vmail && ! -L /vmail ]] && mkdir /vmail
+[[ ! -d /vmail ]] && mkdir /vmail
 BTKcmdCheck 'Add /vmail directory for vmail'
 
 echo 'DSHELL=/usr/sbin/nologin
