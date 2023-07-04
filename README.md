@@ -1,58 +1,23 @@
 # Bash Ubuntu Management Scripts
 
 BUMS is a hosting management script, using Bash on Ubuntu.
-I have run hosting servers for well over 25 years.
-I have used cPanel, Webmin and others. They all have the same problems.
-1. When web account is hacked, email is hacked too.
-2. Customers are given way too many freedoms and end up doing stupid things.
-3. Password logins... enough said.
+I have run hosting servers for since 1997, so i have a fair bit of experience.
+I have used cPanel, Webmin and others. These hosting panels were all started over 20 years ago, and suffer from being stuck in a rut created at that time.
 
-BUMS separates email and web, does not allow customers access and uses SSH keys to login.
-Hosting providers need to stop letting customers dictate how to run servers.
-One thing I learnt was that the CUSTOMER IS ALWAYS WRONG.
-BUMS allows you to run your servers so your customers do not do stupid things and therefore they will have a trouble free experience.
+Problems include:
+1. Because email is not separate, when their php website is hacked their email is hacked too.
+2. Customers are treated as trusted users, they should not be. Customers should only be given what is needed.
+3. Customers are allowed to use passwords, they should be using ssh keys.
+4. The panels code is far too complex, they lack a simplistic approach.
 
 BUMS configures a lean efficient and secure system.
 Install1.sh uses about 5gb not counting the swap usage you choose.
 The full install with 4gb swap uses 10gb.
 
-Login as root to a clean install of Ubuntu 22.04 or greater
-run the following commands:
-```
-wget https://raw.githubusercontent.com/srvr-au/bums/main/install.sh
-chmod +x install.sh
-./install.sh
-```
+## Hardware configuration
+If you intend to install nginx (install2.sh) you should install quotas. Quotas will stop one user crashing your whole system by using all disk space.
+If you intend to install quotas, attaching a disk/partition to your instance and mounting it as /nginx will allow you to install journaled quotas (rather than deprecated quotas). This disk/partition will contain all nginx users websites. If you intend to install Postfix you might also like to store all email accounts on a seperate disk/partition mounted as /vmail (quotas not usefull). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups. Using an attached disk will allow you to detach and attach it to another instance.
 
-## What install.sh does...
-- make dir /root/bums and change to it
-- download script signing public key and install on keyring
-- download install1.sh and install1.sig and verify
-- run install1.sh
-
-## What install1.sh does...
-- download bashTK (my bash toolkit) and bashTK.sig and verify
-- checks you are running ubuntu and at least 22.04
-- Checks your SSH, hardens it and encourages you to use keys over passwords.
-- runs apt update
-- gives opportunity to change hostname and timezone
-- adds aliases to update (srvrup) and reboot (srvrboot)
-- makes vim default editor with tabs at 2 spaces
-- asks how much swap memory you want created
-- if UFW (firewall) installed you can allow openssh and enable the firewall
-- asks if you want to download and install msmtp-mta (a very lightweight mta)
-msmtp-mta is great for a server that wont be receiving emails, just generating them.
-Uses include : DNS server, Storage Server, Backup Storage, Database Server, Web Server where Port 25 is blocked, etc
-- if you choose yes it will ask if you want to install sysstat, logwatch, rblCheck, sysstatReport, rebootCheck and configure unattended-upgrades to install security updates and email you
-- it will verify my scripts and configure everything else.
-- offers to download install2 so you can install Nginx and/or Postfix (if msmtp-mta is not installed).
-- Update system and reboot
-
-You now have a server ready for you to install DNS, Database, rsync etc
-
-## Before running install2.sh
-If you intend to install nginx you should install quotas. Quotas will stop one user crashing your whole system by using all disk space.
-If you intend to install quotas you should attach a disk to your instance and mount it as /nginx. This will contain all nginx users websites. If you intend to install Postfix you might also like to store all email accounts on a seperate disk mounted as /vmail (no quotas). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups.
 ### Procedure
 Using Google Compute as an example... (similar for Amazon and Azure)
 
@@ -104,10 +69,9 @@ because sdb2 is an unmouted filesystem we can
 check
 > tune2fs -l /dev/sdb2 | grep -i quota
 
-all good
+That's it!
 
-**************************
-
+******************
 > mkdir /vmail
 
 > mkdir /nginx
@@ -146,13 +110,44 @@ create old deprecated quota files
 check quotas are working
 > repquota -s /
 
+## Installation
+Login as root to a clean install of Ubuntu 22.04 or greater
+run the following commands:
+```
+wget https://raw.githubusercontent.com/srvr-au/bums/main/install.sh
+chmod +x install.sh
+./install.sh
+```
+
+## What install.sh does...
+- make dir /root/bums and change to it
+- download script signing public key and install on keyring
+- download install1.sh and install1.sig and verify
+- execute install1.sh
+
+## What install1.sh does...
+- download bashTK (my bash toolkit) and bashTK.sig and verify
+- checks you are running ubuntu and at least 22.04
+- Checks your SSH, hardens it and encourages you to use keys over passwords.
+- runs apt update
+- gives opportunity to change hostname and timezone
+- adds aliases to update (srvrup) and reboot (srvrboot)
+- makes vim default editor with tabs at 2 spaces
+- asks how much swap memory you want created
+- if UFW (firewall) installed you can allow openssh and enable the firewall
+- asks if you want to download and install msmtp-mta (a very lightweight mta)
+msmtp-mta is great for a server that wont be receiving emails, just generating them.
+Uses include : DNS server, Storage Server, Backup Storage, Database Server, Web Server where Port 25 is blocked, etc
+- if you choose yes it will ask if you want to install sysstat, logwatch, rblCheck, sysstatReport, rebootCheck and configure unattended-upgrades to install security updates and email you
+- it will verify my scripts and configure everything else.
+- offers to download install2 and execute it so you can install Nginx and/or Postfix (if msmtp-mta is not installed).
+- or Updates system and reboots. You now have a server ready for you to install DNS, Database, rsync etc
+
 ## What install2.sh does
 Login as root after reboot
 ```
 cd bums
-./install2.sh
-```
-
+./
 - Check you have run install1.sh
 - if msmtp is installed you can install nginx else
 - Asks if you want to install just email server or email + web server.
