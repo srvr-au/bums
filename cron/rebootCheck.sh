@@ -30,16 +30,15 @@ myhostname='srvrhostname'
 hostname=$( hostname )
 email='root'
 now=$( date )
-disk='/'
-services=(ssh unattended-upgrades ufw sysstat postfix dovecot opendkim nginx php7.4-fpm mariadb)
-message="$hostname was rebooted at $now\n"
+services=(ssh unattended-upgrades ufw sysstat postfix dovecot opendkim nginx php8.1-fpm mariadb)
+message="$hostname was rebooted at $now"
 
-message+="\nMemory usage: \n"
+message+="\n\nMemory Information:\n"
 message+="$( free -tm )"
-message+="\n\nUptime: "
+message+="\n\nUptime Information:\n"
 message+="$( uptime )"
-message+="\n\nDisk Space Used: "
-message+="$( df -h | grep -w $disk | awk '{ print $5 }' | sed 's/G//g' )"
+message+="\n\nDisk Information:\n"
+message+="$( df -h -x tmpfs )"
 message+="\n\nServices:\n==================\n"
 
 for i in "${services[@]}"; do

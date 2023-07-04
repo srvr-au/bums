@@ -2,7 +2,7 @@
 
 vtext='1.00'
 usetext='Runs from cron and emails disk usage
-of /home and /home2'
+of /nginx and /vmail'
 
 read -r -d '' htext <<-EOF
 -------------------------
@@ -29,12 +29,12 @@ email='root'
 now=$( date )
 
 message="$hostname Disk Usage Report at $now\n"
-message+="\n            Total Used Free\n"
-message+="Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
-message+="\n\nWeb Disk Usage /nginx\n"
+message+="\n Disk information\n----------------------\n"
+message+="$( df -h -x tmpfs )"
+message+="\n\nWeb Disk Usage /nginx\n---------------------\n"
 message+=$( du -h --max-depth=2 /nginx )
 if [[ -d /vmail ]]; then
-message+="\n\nEmail Disk Usage /vmail\n"
+message+="\n\nEmail Disk Usage /vmail\n------------------------\n"
 message+=$( du -h --max-depth=2 /vmail )
 fi
 
