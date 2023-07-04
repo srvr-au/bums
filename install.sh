@@ -6,9 +6,9 @@ cd /root/bums
 echo '...Done'
 
 if command -v unminimize &>/dev/null; then
-echo 'Looks like we have a minimal install, unminimizing...'
-yes | unminimize
-echo '...Done'
+  echo 'Looks like we have a minimal install, unminimizing...'
+  yes | unminimize
+  echo '...Done'
 fi
 
 echo 'Download and install srvr public key...'

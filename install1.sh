@@ -162,23 +162,15 @@ touch /root/.bashrc
 tee -a /root/.bashrc <<'EOF' >/dev/null
 export EDITOR='vim'
 export VISUAL='vim'
-echo -e "\n=============================="
-echo "$( hostname ) - $( hostname -i )"
-echo ''
-cpus=$( nproc )
-read -r a b c d < /proc/loadavg
-onef=$( bc  <<< "scale=2; $a/$cpus" )
-twof=$( bc  <<< "scale=2; $b/$cpus" )
-threef=$( bc  <<< "scale=2; $c/$cpus" )
-echo "CPU Usage (1 5 15): $onef% $twof% $threef%"
-echo -e "\n            Total Used Free"
-echo "Disk Space: $( df -h | grep -w / | awk '{ print $2" "$3" "$4 }' )"
-echo "Memory:     $( free -h --si | grep -w Mem: | awk '{ print $2" "$3" "$4 }' )"
-echo "Swap:       $( free -h --si | grep -w Swap: | awk '{ print $2" "$3" "$4 }' )"
-echo ''
-echo $( grep " can be applied immediately." /var/lib/update-notifier/updates-available )
-[[ -f /var/run/reboot-required ]] && cat /var/run/reboot-required
-echo -e "==============================\n"
+echo -e "\n\e[0;30;102m\e[K CPU Information\e[0m"
+echo -e "$( iostat -c )"
+echo -e "\n\e[0;30;102m\e[K Disk Information\e[0m"
+echo -e "$( df -h -x tmpfs )"
+echo -e "\n\e[0;30;102m\e[K Memory Information\e[0m"
+echo -e "$( free )"
+echo -e "\n\e[0;30;102m\e[K $( grep " can be applied immediately." /var/lib/update-notifier/updates-available )\e[0m"
+[[ -f /var/run/reboot-required ]] && echo -e "\e[0;30;101m\e[K $( cat /var/run/reboot-required )\e[0m"
+echo -e "\n"
 EOF
 BTKcmdCheck 'VIM made default editor.'
 
@@ -402,17 +394,13 @@ Unattended-Upgrade::Automatic-Reboot "false";
   else
     BTKfatalError 'Looks like msmtp-mta failed to install.'
   fi
-else
-  BTKinfo 'Time to update our repository information...'
-  apt update &>/dev/null
-  BTKcmdCheck 'Update Repository'
 fi
 
 BTKheader 'Install2.sh download.'
 BTKinfo 'Install2.sh will install Nginx web server and/or Postfix MTA.'
-BTKask 'Would you like to download install2.sh...?'
+BTKask 'Would you like to download and execute install2.sh...?'
 if [[ ${btkYN} == 'y' ]]; then
-  BTKinfo 'Downloading install2.sh, run it after reboot...'
+  BTKinfo 'Downloading install2.sh...'
   if wget https://raw.githubusercontent.com/srvr-au/bums/main/install2.sh &>/dev/null &&
     wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/install2.sig &>/dev/null &&
     gpg --verify install2.sig install2.sh &>/dev/null; then
@@ -420,15 +408,19 @@ if [[ ${btkYN} == 'y' ]]; then
     rm install2.sig
     chmod +x install2.sh
     BTKcmdCheck 'chmod install2.sh executable'
+    ./install2.sh
   else
     BTKerror 'install2.sh download failed.'
   fi
+else
+  BTKpause
+  BTKheader 'Finish: Upgrade and Reboot'
+  BTKinfo 'Time to update our repository information...'
+  apt update &>/dev/null
+  BTKcmdCheck 'Update Repository'
+  BTKinfo 'Now we will upgrade all Server Software... then reboot'
+  BTKpause
+  DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
+  systemctl reboot
+  BTKsuccess 'Please wait for the system to reboot...'
 fi
-
-BTKpause
-BTKheader 'Finish: Upgrade and Reboot'
-BTKinfo 'Now we will upgrade all Server Software... then reboot'
-BTKpause
-DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-systemctl reboot
-BTKsuccess 'Please wait for the system to reboot...'
