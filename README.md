@@ -16,7 +16,11 @@ The full install with 4gb swap uses 10gb.
 
 ## Hardware configuration
 If you intend to install nginx (install2.sh) you should install quotas. Quotas will stop one user crashing your whole system by using all disk space.
-If you intend to install quotas, attaching a disk/partition to your instance and mounting it as /nginx will allow you to install journaled quotas (rather than deprecated quotas). This disk/partition will contain all nginx users websites. If you intend to install Postfix you might also like to store all email accounts on a seperate disk/partition mounted as /vmail (quotas not usefull). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups. Using an attached disk will allow you to detach and attach it to another instance.
+If you intend to install quotas, attaching a disk/partition to your instance and mounting it as /nginx will allow you to install journaled quotas (rather than deprecated quotas). This disk/partition will contain all nginx users websites.
+
+If you intend to install Postfix you might also like to store all email accounts on a seperate disk/partition mounted as /vmail (quotas not usefull). For ease of data recovery all nginx/postfix backups will be stored in /nginx/backups and /vmail/backups.
+
+Using an attached disk will allow you to detach and attach it to another instance.
 
 ### Procedure
 Using Google Compute as an example... (similar for Amazon and Azure)
