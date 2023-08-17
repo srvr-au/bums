@@ -24,9 +24,6 @@ in
 esac
 done
 
-myhostname='srvrhostname'
-[[ $( hostname ) != $myhostname ]] && hostnamectl set-hostname $myhostname
-
 hostname=$( hostname )
 email='root'
 now=$( date )
