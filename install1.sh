@@ -191,8 +191,12 @@ if [[ "$swap" -eq 0 ]]; then
   df -h /
   BTKaskConfirm 'Enter in whole numbers the amount of GB you wish to allocate for swap. 0 for none.'
   if [[ $btkAnswerEng =~ ^[1-9]+$ ]]; then
-    btkRunCommands=("fallocate -l ${btkAnswerEng}GB /swapfile" 'chmod 600 /swapfile' 'mkswap /swapfile' 'swapon /swapfile' "BTKbackupOrigConfig /etc/fstab" "echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab" 'mount -a')
+    btkRunCommands=("fallocate -l ${btkAnswerEng}GB /swapfile" 'chmod 600 /swapfile' 'mkswap /swapfile' 'swapon /swapfile' "BTKbackupOrigConfig /etc/fstab")
     BTKrun
+    echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab
+    BTKcmdCheck 'Add swapfile to fstab.'
+    mount -a
+    BTKcmdCheck 'Mount swapfile.'
     BTKinfo 'Here is your new Memory Stats'
     free
   else
@@ -313,6 +317,7 @@ set mta="/usr/bin/msmtp"
 default: root
 " >> /etc/aliases
     BTKcmdCheck 'Write root email address into aliases file.'
+    newaliases
     
     BTKpause
     BTKheader 'Lets configure some scripts'
@@ -371,7 +376,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
     if [[ -n ${bumsCommand} ]]; then
       bumsJob="30 08 * * * $bumsCommand"
       BTKmakeCron "$bumsCommand" "$bumsJob"
-      BTKcmdCheck "${bumsScript}".sh cron installation"
+      BTKcmdCheck "${bumsScript}.sh cron installation"
     else
       BTKwarn "${bumsScript}.sh cron job failed to be added."
     fi
@@ -383,7 +388,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
     if [[ -n ${bumsCommand} ]]; then
       bumsJob="@reboot $bumsCommand"
       BTKmakeCron "$bumsCommand" "$bumsJob"
-      BTKcmdCheck "${bumsScript}".sh cron installation"
+      BTKcmdCheck "${bumsScript}.sh cron installation"
     else
       BTKwarn "${bumsScript}.sh cron job failed to be added."
     fi

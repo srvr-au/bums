@@ -1586,7 +1586,7 @@ BUMScronDownload "${bumsScript}"
 if [[ -n ${bumsCommand} ]]; then
   bumsJob="30 08 * * * $bumsCommand"
   BTKmakeCron "$bumsCommand" "$bumsJob"
-  BTKcmdCheck "${bumsScript}".sh cron installation"
+  BTKcmdCheck "${bumsScript}.sh cron installation"
 else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
@@ -1597,7 +1597,7 @@ BUMScronDownload "${bumsScript}"
 if [[ -n ${bumsCommand} ]]; then
   bumsJob="@reboot $bumsCommand"
   BTKmakeCron "$bumsCommand" "$bumsJob"
-  BTKcmdCheck "${bumsScript}".sh cron installation"
+  BTKcmdCheck "${bumsScript}.sh cron installation"
 else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
@@ -1696,6 +1696,9 @@ else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
 
+BTKinfo 'Now we will upgrade all Server Software... then reboot'
+sleep 1
+DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
 sleep 1
 BTKinfo 'Time to reboot...'
 BTKsuccess 'Installation complete, please wait for reboot...'
