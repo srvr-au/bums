@@ -1,33 +1,30 @@
 #!/bin/bash
-
+clear
 echo 'Bash Ubuntu Management Scripts (BUMS)'
-echo 'Server Setup Script/s'
+echo -e 'Server Setup Script/s\n'
 
 echo 'Creating /root/bums for install files...'
 if mkdir /root/bums &&
 cd /root/bums; then
-  echo '...Done'
+  echo -e '...Done\n'
 else
-  echo 'Fatal Error... exiting'
+  echo 'Fatal Error 1, exiting...'
   exit
 fi
 
 if command -v unminimize &>/dev/null; then
   echo 'Looks like we have a minimal install, unminimizing...'
   yes | unminimize
-  echo '...Done'
-else
-  echo 'Fatal Error... exiting'
-  exit
+  echo -e '...Done\n'
 fi
 
 echo 'Download and install srvr public key...'
 if wget https://srvr-au.bitbucket.io/verifyscript.pubkey &>/dev/null &&
   gpg --import verifyscript.pubkey &>/dev/null &&
   rm verifyscript.pubkey; then
-  echo '...Done'
+  echo -e '...Done\n'
 else
-  echo 'Fatal Error... exiting'
+  echo 'Fatal Error 3, exiting...'
   exit
 fi
 
@@ -37,9 +34,9 @@ if wget https://raw.githubusercontent.com/srvr-au/bums/main/install1.sh &>/dev/n
   gpg --verify install1.sig install1.sh &>/dev/null &&
   rm install1.sig &&
   chmod +x install1.sh; then
-    echo 'Success... install1.sh downloaded, verified and made executable.'
+    echo -e 'Success... install1.sh downloaded, verified and made executable.\n'
 else
-  echo 'Fatal Error... exiting'
+  echo 'Fatal Error 4, exiting...'
   exit
 fi
 echo 'We are ready to run install1.sh...'

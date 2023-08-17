@@ -261,11 +261,11 @@ if [[ ${btkYN} == 'y' ]]; then
         mtatype='submission'
         mtaport='587'
         break
-      elif [[ $btkMenuAnswer == 'b' ]]
+      elif [[ $btkMenuAnswer == 'b' ]]; then
         mtatype='smtps'
         mtaport='465'
         break
-      elif [[ $btkMenuAnswer == 'x' ]]
+      elif [[ $btkMenuAnswer == 'x' ]]; then
         BTKexit
       fi
     done
