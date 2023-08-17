@@ -191,7 +191,7 @@ if [[ "$swap" -eq 0 ]]; then
   df -h /
   BTKaskConfirm 'Enter in whole numbers the amount of GB you wish to allocate for swap. 0 for none.'
   if [[ $btkAnswerEng =~ ^[1-9]+$ ]]; then
-    btkRunCommands=("fallocate -l ${btkAnswerEng}GB /swapfile" 'chmod 600 /swapfile' 'mkswap /swapfile' 'swapon /swapfile' "BTKbackupOrigConfig '/etc/fstab'" "echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab" 'mount -a')
+    btkRunCommands=("fallocate -l ${btkAnswerEng}GB /swapfile" 'chmod 600 /swapfile' 'mkswap /swapfile' 'swapon /swapfile' "BTKbackupOrigConfig /etc/fstab" "echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab" 'mount -a')
     BTKrun
     BTKinfo 'Here is your new Memory Stats'
     free
