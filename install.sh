@@ -1,4 +1,5 @@
 #!/bin/bash
+screen -S bumsInstall /bin/bash "$0"
 clear
 echo 'Bash Ubuntu Management Scripts (BUMS)'
 echo -e 'Server Setup Script/s\n'
