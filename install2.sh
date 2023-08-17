@@ -37,14 +37,14 @@ done
 
 clear
 
-if [[ ! -f bashTK ]]; then
+if [[ ! -f /root/bums/bashTK ]]; then
   echo 'Please run install1.sh first...'
   exit
 fi
 
-rm install1.sh &>/dev/null
+[[ -f /root/bums/install1.sh ]] && rm /root/bums/install1.sh
+[[ $( pwd ) != '/root/bums' ]] && cd /root/bums
 source bashTK
-[[ $( pwd ) != '/root/bums' ]] && BTKfatalError 'You cannot run this script from here.'
 
 BUMScronDownload(){
 BTKinfo "Downloading ${1}.sh..."
@@ -64,10 +64,17 @@ else
 fi
 }
 
-echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
+echo -e "${btkPurBg} ${btkReset}\n${btkPurFg}Bash Ubuntu Management Scripts (BUMS)${btkReset}\n${btkPurBg} ${btkReset}\n"
 echo -e ${usetext}
 
-echo -e "\n\n*** Important:\nIf your instance has an external firewall you should enable port 80 now.\nIf installing Nginx you should enable port 443 as well.\nIf installing Postfix you should enable ports 25, 995 and 587 as well."
+BTKheader '*** IMPORTANT ***'
+BTKinfo 'Your Hostname MUST resolve to this instances IP address.'
+BTKinfo 'If there is an external firewall...'
+BTKinfo 'If installing Nginx you should open port 80 and 443.'
+BTKinfo 'If installing Postfix you should open ports 25, 80, 995 and 587.'
+BTKinfo 'This script will take care of Uncomplicated Firewall (UFW) ports.'
+BTKinfo 'If using a different internal firewall you should open above ports...'
+BTKheader ' '
 
 BTKpause
 BTKheader 'What to install today...'
@@ -94,15 +101,17 @@ fi
 BTKinfo "Root email is $rootEmail"
 
 mkdir -p /root/bums/ssl/${btkHost}
+BTKcmdCheck 'Create SSL Directory'
 
 if [[ ${softInstall} == 'Nginx' || ${softInstall} == 'Both' ]]; then
 
-BTKpause
+sleep 1
 BTKinfo 'Opening ports 80 and 443 in UFW'
 ufw allow 80,443/tcp
 BTKcmdCheck 'Open ports 80 and 443 in UFW'
+ufw status
 
-BTKpause
+sleep 2
 BTKheader 'Add /nginx, add sftpgroup, chroot sftpgroup to home directory (/nginx)'
 [[ ! -d /nginx ]] && mkdir /nginx
 BTKcmdCheck '/nginx directory exists.'
@@ -118,32 +127,22 @@ ForceCommand internal-sftp
 ' >> /etc/ssh/sshd_config.d/99-srvr.conf
 BTKcmdCheck 'sftpgroup created and chrooted.'
 
-BTKpause
+sleep 1
 BTKheader 'Install nginx, php, sqlite and mariadb'
 install=()
 install='expect nginx php-fpm php-cli php-common php-gd php-mysql php-mbstring php-json php-sqlite3 php-gnupg php-curl php-zip mariadb-server sqlite3'
 echo -e "We will try to install the following software\n${install[@]}\n"
-BTKpause
+sleep 2
 BTKinstall ${install[@]}
 
-BTKpause
+sleep 2
 BTKheader 'Creating skel directories including html and log files'
 
-mkdir -p /etc/skel/logs/http
-touch /etc/skel/logs/http/access.log
-touch /etc/skel/logs/http/error.log
-mkdir /etc/skel/logs/php
-touch /etc/skel/logs/php/access.log
-touch /etc/skel/logs/php/error.log
-touch /etc/skel/logs/php/mail.log
-mkdir /etc/skel/sqlite
-mkdir -p /etc/skel/php/opcache
-mkdir /etc/skel/php/session
-mkdir /etc/skel/php/wsdlcache
-mkdir -p /etc/skel/php/tmp/misc
-mkdir /etc/skel/php/tmp/uploads
+btkRunCommands=('mkdir -p /etc/skel/logs/http' 'touch /etc/skel/logs/http/access.log' 'touch /etc/skel/logs/http/error.log' 'mkdir /etc/skel/logs/php' 'touch /etc/skel/logs/php/access.log' 'touch /etc/skel/logs/php/error.log' 'touch /etc/skel/logs/php/mail.log' 'mkdir /etc/skel/sqlite' 'mkdir -p /etc/skel/php/opcache' 'mkdir /etc/skel/php/session' 'mkdir /etc/skel/php/wsdlcache' 'mkdir -p /etc/skel/php/tmp/misc' 'mkdir /etc/skel/php/tmp/uploads')
+BTKrun
 
 mkdir /root/bums/templates
+BTKcmdCheck 'Create templates Directory'
 
 BTKheader 'Placing html files into templates folder'
 
@@ -173,6 +172,7 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </body>
 </html>
 ' > /root/bums/templates/index.html
+BTKcmdCheck '/root/bums/templates/index.html'
 
 echo '<!doctype html><html lang="en-au"><head><meta name="robots" content="noindex,nofollow,noarchive"><title>Website Error</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><meta charset="utf-8">
 <style type="text/css">
@@ -189,22 +189,13 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </body>
 </html>
 ' > /root/bums/templates/error.html
+BTKcmdCheck '/root/bums/templates/error.html'
 
-BTKpause
+sleep 1
 BTKheader 'Placing files into /var/www'
 
-mkdir -p /var/www/html/suspended
-mkdir -p /var/www/logs/http
-touch /var/www/logs/http/error.log
-touch /var/www/logs/http/access.log
-mkdir /var/www/logs/php
-touch /var/www/logs/php/error.log
-touch /var/www/logs/php/mail.log
-touch /var/www/logs/php/access.log
-mkdir -p /var/www/php/tmp/uploads
-mkdir /var/www/php/session
-mkdir /var/www/php/opcache
-mkdir /var/www/php/wsdlcache
+btkRunCommands=('mkdir -p /var/www/html/suspended' 'mkdir -p /var/www/logs/http' 'touch /var/www/logs/http/error.log' 'touch /var/www/logs/http/access.log' 'mkdir /var/www/logs/php' 'touch /var/www/logs/php/error.log' 'touch /var/www/logs/php/mail.log' 'touch /var/www/logs/php/access.log' 'mkdir -p /var/www/php/tmp/uploads' 'mkdir /var/www/php/session' 'mkdir /var/www/php/opcache' 'mkdir /var/www/php/wsdlcache')
+BTKrun
 
 echo '<!doctype html><html lang="en-au"><head><meta name="robots" content="noindex,nofollow,noarchive"><title>Website Suspended</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><meta charset="utf-8">
 <style type="text/css">
@@ -219,6 +210,7 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </div></div>
 </body>
 </html>' > /var/www/html/suspended/index.html
+BTKcmdCheck '/var/www/html/suspended/index.html'
 
 echo '<!doctype html><html lang="en-au"><head><meta name="robots" content="noindex,nofollow,noarchive"><title>Server Information</title><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><meta charset="utf-8">
 <style type="text/css">
@@ -233,10 +225,12 @@ body{font-family:sans-serif;background:#ffffff;margin:0;}
 </div></div>
 </body>
 </html>' > /var/www/html/index.html
+BTKcmdCheck '/var/www/html/index.html'
 
 cp /root/bums/templates/error.html /var/www/html/error.html
+BTKcmdCheck 'copy error.html from templates to /var/www/html'
 
-BTKpause
+sleep 1
 BTKheader 'Configure Nginx'
 
 BTKbackupOrigConfig '/etc/nginx/nginx.conf'
@@ -370,24 +364,33 @@ include /etc/nginx/conf.d/*.conf;
 include /etc/nginx/sites-enabled/*;
 }
 EOF
+BTKcmdCheck 'Create Nginx conf file'
 
 BTKinfo 'Install 7g Web Application Firewall'
-wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g-firewall.conf
-mv 7g-firewall.conf /etc/nginx/conf.d/
-wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g.conf
-mv 7g.conf /etc/nginx/snippets/
+if wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g-firewall.conf &>/dev/null &&
+mv 7g-firewall.conf /etc/nginx/conf.d/ &&
+wget https://raw.githubusercontent.com/srvr-au/bums/main/thirdParty/7g.conf &>/dev/null &&
+mv 7g.conf /etc/nginx/snippets/; then
+  BTKsuccess '7g Web Application Firewall (WAF) installed'
+else
+  BTKwarn '7g Web Application Firewall (WAF) installation failed.'
+fi
 
+sleep 1
 BTKinfo 'Reload Nginx'
 nginx -t
 systemctl reload nginx
 
-BTKpause
+sleep 2
 BTKheader 'Installing Hostname SSL Certificate'
 
-curl --silent https://raw.githubusercontent.com/srvrco/getssl/latest/getssl > /root/bums/getssl
-chmod 700 /root/bums/getssl
-
-mkdir /root/.getssl
+if curl --silent https://raw.githubusercontent.com/srvrco/getssl/latest/getssl > /root/bums/getssl &&
+chmod 700 /root/bums/getssl &&
+mkdir /root/.getssl; then
+  BTKsuccess 'getssl installed'
+else
+  BTKerror 'getssl installation failed'
+fi
 
 echo 'CA="https://acme-v02.api.letsencrypt.org"
 FULL_CHAIN_INCLUDE_ROOT="true"
@@ -400,9 +403,12 @@ PRIVATE_KEY_ALG="secp384r1"
 ACCOUNT_KEY="/root/.getssl/account.key"
 ACCOUNT_EMAIL="srvremail"
 ' > /root/.getssl/getssl.cfg
+BTKcmdCheck 'getssl config file created'
 sed -i "s/srvremail/${rootEmail}/" /root/.getssl/getssl.cfg
+BTKcmdCheck 'getssl config file updated'
 
 /root/bums/getssl -c "${btkHost}"
+BTKcmdCheck 'getssl hostname directory created'
 
 echo 'SANS=""
 USE_SINGLE_ACL="true"
@@ -411,20 +417,27 @@ TOKEN_USER_ID="www-data:www-data"
 DOMAIN_KEY_LOCATION="/root/bums/ssl/srvrdomain/privkey.pem"
 DOMAIN_CHAIN_LOCATION="/root/bums/ssl/srvrdomain/fullchain.pem"
 DOMAIN_PEM_LOCATION="/root/bums/ssl/srvrdomain/keyfullchain.pem"
-RELOAD_CMD="systemctl reload serverservices"
+RELOAD_CMD="systemctl reload srvrservices"
 ' > /root/.getssl/${btkHost}/getssl.cfg
+BTKcmdCheck 'getssl hostname config file written'
 
 sed -i "s/srvrdomain/${btkHost}/g" /root/.getssl/${btkHost}/getssl.cfg
+BTKcmdCheck 'getssl hostname config file updated'
+
 [[ $softInstall == 'Both' ]] && serverServices='nginx postfix dovecot' || serverServices='nginx'
 sed -i "s/srvrservices/${serverServices}/g" /root/.getssl/${btkHost}/getssl.cfg
+BTKcmdCheck 'getssl hostname config file updated again'
 
+BTKinfo 'Get SSL Certificate for hostname.'
 /root/bums/getssl -a
 
+sleep 2
 command="/root/bums/getssl -u -a"
 job="30 09 * * MON,THU $command"
 BTKmakeCron "$command" "$job"
+BTKcmdCheck 'SSL cron job added.'
 
-BTKpause
+sleep 2
 BTKheader 'Setup Nginx server files'
 
 BTKbackupOrigConfig '/etc/nginx/sites-available/default'
@@ -447,8 +460,10 @@ server {
   return 302 http://$host$request_uri;
 }
 ' > /etc/nginx/sites-available/default
+BTKcmdCheck 'default conf file written'
 
 sed -i "s/srvrdomain/${btkHost}/g" /etc/nginx/sites-available/default
+BTKcmdCheck 'default conf file updated'
 
 echo 'server {
 server_name www.srvrdomain;
@@ -536,16 +551,20 @@ expires           30d;
 
 }
 ' > /etc/nginx/sites-available/${btkHost}
+BTKcmdCheck 'hostname conf file written'
 
-sed -i "s/srvrdomain/${btkHost}/g" /etc/nginx/sites-available/${btkHost}
-srvrRandom=$( BTKrandLetters 5 )
-sed -i "s/srvrXXXXX/${srvrRandom}/g" /etc/nginx/sites-available/${btkHost}
-
-ln -s /etc/nginx/sites-available/${btkHost} /etc/nginx/sites-enabled/${btkHost}.conf
+if sed -i "s/srvrdomain/${btkHost}/g" /etc/nginx/sites-available/${btkHost} &&
+srvrRandom=$( BTKrandLetters 5 ) &&
+sed -i "s/srvrXXXXX/${srvrRandom}/g" /etc/nginx/sites-available/${btkHost} &&
+ln -s /etc/nginx/sites-available/${btkHost} /etc/nginx/sites-enabled/${btkHost}.conf; then
+  BTKsuccess 'Hostname conf file updated'
+else
+  BTKwarn 'Hostname conf file update failed'
+fi
 
 nginx -t
 
-BTKpause
+sleep 2
 BTKheader 'Creating root php conf files'
 
 BTKbackupOrigConfig '/etc/php/8.1/fpm/php-fpm.conf'
@@ -607,14 +626,20 @@ env[TMPDIR] = /var/www/php/tmp
 env[TEMP] = /var/www/php/tmp
 
 ' > /etc/php/8.1/fpm/pool.d/www.conf
+BTKcmdCheck 'Hostname php poll conf file written'
 
 sed -i "s/srvrXXXXX/${srvrRandom}/g" /etc/php/8.1/fpm/pool.d/www.conf
+BTKcmdCheck 'Hostname php pool conf file updated'
 
+sleep 1
+BTKinfo 'test php configuration'
 php-fpm8.1 -t
-BTKpause
+sleep 1
+BTKinfo 'Reload daemon, php and nginx'
 systemctl daemon-reload
 systemctl reload php8.1-fpm
 systemctl reload nginx
+
 
 echo '<?php phpinfo(); ?>' > /var/www/html/srvrphpinfo.php
 chown www-data:www-data /var/www -R
@@ -634,6 +659,7 @@ copytruncate
 dateext
 rotate 2
 }' > /etc/logrotate.d/srvrrootlogs
+BTKcmdCheck 'Rotate /var/www logs.'
 
 echo '/nginx/*/logs/*/*.log {
 size 1M
@@ -641,14 +667,18 @@ copytruncate
 dateext
 rotate 2
 }' > /etc/logrotate.d/srvruserlogs
+BTKcmdCheck 'Rotate all users logs.'
 
-BTKpause
+sleep 1
 BTKheader 'Make sure nginx and php restart on-failure'
 
 BTKaddRestart 'nginx'
-BTKaddRestart 'php8.1-fpm'
+BTKcmdCheck 'Add restart nginx.'
 
-BTKpause
+BTKaddRestart 'php8.1-fpm'
+BTKcmdCheck 'Add php restart.'
+
+sleep 1
 BTKheader 'Write tmpl files for GetSSL, Nginx and PHP'
 
 echo 'SANS="www.srvrdomain"
@@ -659,6 +689,7 @@ DOMAIN_KEY_LOCATION="/root/bums/ssl/srvrdomain/privkey.pem"
 DOMAIN_CHAIN_LOCATION="/root/bums/ssl/srvrdomain/fullchain.pem"
 DOMAIN_PEM_LOCATION="/root/bums/ssl/srvrdomain/keyfullchain.pem"
 ' > /root/bums/templates/getssl.tmpl
+BTKcmdCheck 'Write getSSL temoplate.'
 
 echo '[srvruser]
 listen = /run/php/php8.1-fpm-srvruser.sock
@@ -706,6 +737,7 @@ env[TMPDIR] = /nginx/srvruser/php/tmp
 env[TEMP] = /nginx/srvruser/php/tmp
 
 ' > /root/bums/templates/phpuser.tmpl
+BTKcmdCheck 'Write php user template.'
 
 echo 'server {
 listen 80;
@@ -738,6 +770,7 @@ location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|flv|swf|ttf|eot|svg|woff)$ {
 }
 
 ' > /root/bums/templates/80.tmpl
+BTKcmdCheck 'Write port 80 nginx template.'
 
 echo 'server {
   server_name www.srvrdomain;
@@ -825,6 +858,7 @@ location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|flv|swf|ttf|eot|svg|woff)$ {
 
 }
 ' > /root/bums/templates/80443php.tmpl
+BTKcmdCheck 'Write nginx php template.'
 
 echo 'server {
   server_name www.srvrdomain;
@@ -934,6 +968,7 @@ location ~* wp-config.php {
 
 }
 ' > /root/bums/templates/80443wp.tmpl
+BTKcmdCheck 'Write nginx wordpress template.'
 
 echo 'server {
   server_name www.srvrdomain;
@@ -1013,6 +1048,7 @@ location ~* \.(jpg|jpeg|gif|png|css|js|ico|xml|flv|swf|ttf|eot|svg|woff)$ {
 
 }
 ' > /root/bums/templates/80443.tmpl
+BTKcmdCheck 'Write no php nginx template.'
 
 echo 'location ~ \.php$ {
   fastcgi_pass unix:/run/php/php8.1-fpm-srvruser.sock;
@@ -1023,8 +1059,9 @@ location ~ ^/fpm-srvrXXXXX$ {
   include fastcgi.conf;
 }
 ' > /root/bums/templates/addphp.tmpl
+BTKcmdCheck 'Write add on php nginx template.'
 
-BTKpause
+sleep 1
 BTKheader 'Secure MariaDB'
 BTKinfo 'We will secure root access using unix_socket rather than root password.'
 echo 'Working... Please wait'
@@ -1052,19 +1089,20 @@ expect eof
 echo 'Done!'
 BTKinfo 'If no errors it was a success!'
 
-BTKpause
+sleep 1
 BTKheader 'Install wp cli for Wordpress Management'
-wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-chmod +x wp-cli.phar
-mv wp-cli.phar /usr/local/bin/wp
-wp --info
+if wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar &>/dev/null && chmod +x wp-cli.phar && mv wp-cli.phar /usr/local/bin/wp; then
+  BTKsuccess 'wp cli installed.'
+  wp --info
+else
+  BTKwarn 'wp cli failed to install.'
+fi
 
 BTKsuccess 'Thats Nginx, php and mysql ready for action!'
-
+sleep 2
 fi
 
 if [[ $softInstall == 'Postfix' || $softInstall == 'Both' ]]; then
-BTKpause
 BTKheader 'Install Postfix, Dovecot, opendkim'
 install=()
 install='s-nail postfix postfix-cdb postfix-policyd-spf-python opendkim opendkim-tools dovecot-core dovecot-pop3d'
@@ -1075,15 +1113,17 @@ BTKask 'Would you like to install sysstat (System Statistics)... ?'
 BTKask 'Would you like to install Postfix Log Summary (Y)... ?'
 [[ ${btkYN} == 'y' ]] && install+=('pflogsumm') || echo 'No Postfix Log Summary for you then...'
 echo -e "We will try to install the following software\n${install[@]}\n"
-BTKpause
+
+sleep 1
 
 BTKinstall ${install[@]}
 
-BTKpause
+sleep 1
 BTKheader 'Configure s-nail and aliases'
 ln -s /usr/bin/s-nail /usr/bin/mail
 BTKcmdCheck 'link s-nail to mail command.'
-echo "root: $email
+
+echo "root: $rootEmail
 postmaster: root
 webmaster: root
 hostmaster:root
@@ -1092,8 +1132,10 @@ mailer-daemon: root
 default: root
 " > /etc/aliases
 BTKcmdCheck 'Write root email address into aliases file.'
+newaliases
 
-BTKpause
+
+sleep 1
 BTKheader 'Configure Postfix'
 
 mkdir /etc/skelempty
@@ -1128,10 +1170,11 @@ SKEL_IGNORE_REGEX="dpkg-(old|new|dist|save)"
 ' > /etc/adduser2.conf
 BTKcmdCheck 'Add vmail skel conf.'
 
-adduser --uid 20000 --disabled-password --disabled-login --conf /etc/adduser2.conf --gecos '' vmail
-usermod -aG vmail postfix
-usermod -aG vmail dovecot
-BTKcmdCheck 'Add vmail user'
+if adduser --uid 20000 --disabled-password --disabled-login --conf /etc/adduser2.conf --gecos '' vmail && usermod -aG vmail postfix && usermod -aG vmail dovecot; then
+  BTKsuccess 'Add vmail user'
+else
+  BTKwarn 'vmail user failed to be added.'
+fi
 
 BTKbackupOrigConfig '/etc/postfix/main.cf'
 
@@ -1264,6 +1307,7 @@ milter_protocol = 6
 smtpd_milters = local:opendkim/opendkim.sock
 non_smtpd_milters = $smtpd_milters
 ' > /etc/postfix/main.cf
+BTKcmdCheck 'Postfix main config added.'
 
 sed -i "s/srvrhost/${btkHost}/g" '/etc/postfix/main.cf'
 BTKgrepCheck "${btkHost}" '/etc/postfix/main.cf'
@@ -1278,7 +1322,6 @@ touch /etc/postfix/valias
 BTKcmdCheck 'Create Virtual Alias map'
 postmap cdb:/etc/postfix/valias
 BTKcmdCheck 'Create Virtual alias DB'
-newaliases
 
 BTKbackupOrigConfig '/etc/postfix/master.cf'
 
@@ -1338,6 +1381,7 @@ postlog   unix-dgram n  -       n       -       1       postlogd
 policy-spf  unix  -       n       n       -       -       spawn
      user=nobody argv=/usr/bin/policyd-spf
 ' > /etc/postfix/master.cf
+BTKcmdCheck 'Write postfix master config.'
 
 BTKbackupOrigConfig '/etc/postfix-policyd-spf-python/policyd-spf.conf'
 
@@ -1352,9 +1396,10 @@ TempError_Defer = True
 
 skip_addresses = 127.0.0.0/8,::ffff:127.0.0.0/104,::1
 ' > /etc/postfix-policyd-spf-python/policyd-spf.conf
+BTKcmdCheck 'Write policy-d-spf config.'
 
-BTKpause
 BTKheader 'Configure opendkim'
+sleep 1
 
 gpasswd -a postfix opendkim
 BTKcmdCheck 'Add postfix user to opendkim group'
@@ -1396,10 +1441,14 @@ ExternalIgnoreList  /etc/opendkim/trusted.hosts
 # A set of internal hosts whose mail should be signed
 InternalHosts       /etc/opendkim/trusted.hosts
 " > /etc/opendkim.conf
+BTKcmdCheck 'Write opendkim conf file.'
 
 mkdir -p /etc/opendkim/keys
+BTKcmdCheck 'Make opendkim keys directory.'
 chown -R opendkim:opendkim /etc/opendkim
+BTKcmdCheck 'chown opendkim directories.'
 chmod go-rw /etc/opendkim/keys
+BTKcmdCheck 'chmod keys directory.'
 
 #echo "*@${hostname} default._domainkey.${hostname}" > /etc/opendkim/signing.table
 #echo "default._domainkey.${hostname} ${hostname}:default:/etc/opendkim/keys/${hostname}/default.private" > /etc/opendkim/key.table
@@ -1408,6 +1457,7 @@ echo "127.0.0.1
 localhost
 ${btkHost}
 " > /etc/opendkim/trusted.hosts
+BTKcmdCheck 'Create trusted hosts file.'
 
 #mkdir /etc/opendkim/keys/${hostname}
 #BTKcmdCheck 'make keys directory'
@@ -1423,18 +1473,21 @@ BTKcmdCheck 'create opendkim dir in postfix spool'
 chown opendkim:postfix /var/spool/postfix/opendkim
 BTKcmdCheck 'chown dir in spool'
 
+sleep 2
 if [[ ${softInstall} == 'Postfix' ]]; then
-BTKpause
-BTKheader 'Install Certbot from Snap'
-snap install core
-snap refresh core
-snap install --classic certbot
-BTKcmdCheck 'Certbot installation'
-BTKpause
-BTKheader 'Installing Hostname SSL Certificate'
-mkdir /root/bums/helpers
-touch /root/bums/helpers/certbotDeployHook.sh
-tee -a /root/bums/helpers/certbotDeployHook.sh <<'EOF' >/dev/null
+  BTKheader 'Install Certbot and get hostname SSL'
+  if snap install core && snap refresh core && snap install --classic certbot; then
+    BTKsuccess 'Certbot installed.'
+  else
+    BTKfatalError 'Certbot failed to install.'
+  fi
+  sleep 1
+  BTKinfo 'Installing Hostname SSL Certificate...'
+  mkdir /root/bums/helpers
+  BTKcmdCheck 'Make helpers directory.'
+  touch /root/bums/helpers/certbotDeployHook.sh
+  BTKcmdCheck 'Create certbot deploy hook file.'
+  tee -a /root/bums/helpers/certbotDeployHook.sh <<'EOF' >/dev/null
 #!/bin/bash
 
 hostname=$( hostname )
@@ -1453,11 +1506,14 @@ else
   echo -e "$emailbody" | mail -s "Certbot Error" $email
 fi
 EOF
-chmod +x /root/bums/helpers/certbotDeployHook.sh
-certbot certonly --standalone --agree-tos --non-interactive -m $email -d ${btkHost} --deploy-hook "/root/bums/helpers/certbotDeployHook.sh" --pre-hook "ufw allow 80" --post-hook "ufw delete allow 80"
+  BTKcmdCheck 'Write deploy hook file.'
+  chmod +x /root/bums/helpers/certbotDeployHook.sh
+  BTKcmdCheck 'chmod deploy hook file.'
+  certbot certonly --standalone --agree-tos --non-interactive -m $rootEmail -d ${btkHost} --deploy-hook "/root/bums/helpers/certbotDeployHook.sh" --pre-hook "ufw allow 80" --post-hook "ufw delete allow 80"
+  BTKcmdCheck 'Fetch SSL Certificate.'
 fi
 
-BTKpause
+sleep 2
 BTKheader 'Enable opendkim and postfix'
 BTKenable opendkim
 BTKenable postfix
@@ -1467,7 +1523,7 @@ BTKaddRestart postfix
 mail -s "Public Key" $rootEmail < /etc/opendkim/keys/${selector}.txt
 BTKcmdCheck 'public key mailed'
 
-BTKpause
+sleep 2
 BTKheader 'Lets configure some scripts'
 if BTKisInstalled 'pflogsumm'; then
   BTKinfo 'Installing cron for PostFix Log Summary'
@@ -1505,7 +1561,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
 ' >> /etc/apt/apt.conf.d/50unattended-upgrades
 BTKcmdCheck 'Enable unattended upgrades'
 
-BTKpause
+sleep 2
 BTKheader 'Install cron files and jobs...'
 mkdir /root/bums/cron
 BTKcmdCheck 'Make cron Directory.'
@@ -1557,7 +1613,7 @@ else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
 
-BTKpause
+sleep 2
 BTKheader 'Configure Dovecot'
 BTKbackupOrigConfig '/etc/dovecot/dovecot.conf'
 
@@ -1599,6 +1655,7 @@ userdb {
   args = uid=vmail gid=vmail home=/vmail/%u
 }
 ' > /etc/dovecot/dovecot.conf
+BTKcmdCheck 'Dovecot conf file written.'
 
 sed -i "s/srvrhost/${btkHost}/g" /etc/dovecot/dovecot.conf
 
@@ -1613,6 +1670,8 @@ systemctl reload dovecot
 
 ufw allow 25/tcp
 ufw limit 587,995/tcp
+ufw status
+sleep 2
 
 command="doveadm expunge -F /etc/dovecot/usernames mailbox '*' NEW savedbefore 7d"
 job="15 07 * * * $command"
@@ -1624,7 +1683,7 @@ BTKmakeCron "$command" "$job"
 
 fi
 
-BTKpause
+sleep 2
 BTKheader 'Download, Verify and Install any other cron jobs.'
 bumsScript='getUsage'
 BTKinfo "Download, verify and install cron - ${bumsScript}.sh"
@@ -1637,7 +1696,7 @@ else
   BTKerror "${bumsScript}.sh cron job failed to be added."
 fi
 
-BTKheader 'Time to reboot'
-BTKpause
+sleep 1
+BTKinfo 'Time to reboot...'
+BTKsuccess 'Installation complete, please wait for reboot...'
 systemctl reboot
-BTKsuccess 'Installation complete, rebooting soon...'

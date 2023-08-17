@@ -47,12 +47,10 @@ fi
 echo 'Please wait while I grab bashTK (Bash ToolKit) file...'
 if wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK &>/dev/null &&
   wget https://raw.githubusercontent.com/srvr-au/bashTK/main/bashTK.sig &>/dev/null &&
-  gpg --verify bashTK.sig bashTK &>/dev/null; then
-  rm bashTK.sig
-  source bashTK
-  BTKsuccess 'bashTK downloaded, verified and loaded, press any key to clear and continue...'
-  read -n 1 -s
-  clear
+  gpg --verify bashTK.sig bashTK &>/dev/null &&
+  rm bashTK.sig &&
+  source bashTK; then
+    BTKsuccess 'bashTK downloaded, verified and loaded.'
 else
   echo 'Fatal Error! Exiting...'
   exit
@@ -63,20 +61,21 @@ BTKinfo "Downloading ${1}.sh..."
 bumsCommand=''
 if wget https://raw.githubusercontent.com/srvr-au/bums/main/cron/${1}.sh &>/dev/null &&
   wget https://raw.githubusercontent.com/srvr-au/bums/main/gpgsigs/${1}.sig &>/dev/null &&
-  gpg --verify ${1}.sig ${1}.sh &>/dev/null; then
-  rm ${1}.sig
-  BTKsuccess "${1}.sh downloaded and verified..."
-  mv ${1}.sh /root/bums/cron/${1}.sh
-  BTKcmdCheck "Move ${1}.sh to cron directory."
-  chmod +x /root/bums/cron/${1}.sh
-  BTKcmdCheck "chmod ${1}.sh executable."
-  bumsCommand="/root/bums/cron/${1}.sh > /dev/null 2>&1"
+  gpg --verify ${1}.sig ${1}.sh &>/dev/null &&
+  rm ${1}.sig; then
+    BTKsuccess "${1}.sh downloaded and verified..."
+    mv ${1}.sh /root/bums/cron/${1}.sh
+    BTKcmdCheck "Move ${1}.sh to cron directory."
+    chmod +x /root/bums/cron/${1}.sh
+    BTKcmdCheck "chmod ${1}.sh executable."
+    bumsCommand="/root/bums/cron/${1}.sh > /dev/null 2>&1"
+    sleep 1
 else
   BTKerror "${1}.sh failed to download..."
 fi
 }
 
-echo -e "${btkBlu}========================${btkRes}\n${btkBlu}Bash Ubuntu Management Scripts (BUMS)${btkRes}\n${btkBlu}========================${btkRes}\n"
+echo -e "${btkPurBg} ${btkReset}\n${btkPurFg}Bash Ubuntu Management Scripts (BUMS)${btkReset}\n${btkPurBg} ${btkReset}\n"
 echo -e "${usetext}\n\n"
 
 BTKpause
@@ -87,7 +86,7 @@ BTKinfo 'This software is best run on a clean install of Ubuntu, version greater
 [[ $thisOS == 'Ubuntu' ]] && BTKsuccess 'Good, looks like we are running Ubuntu.' || BTKfatalError "The OS is not Ubuntu"
 [[ $(bc -l <<< "$thisVer > 22.03") -eq 1 ]] && BTKsuccess 'Good, looks like we are running the required version.' || BTKfatalError "The Version needs to be greater than 22.04"
 
-BTKpause
+sleep 2
 BTKheader 'Check SSH configuration, harden SSH'
 if [[ -s /root/.ssh/authorized_keys ]]; then
   BTKsuccess 'Looks like you may have an SSH public key installed'
@@ -101,11 +100,11 @@ else
       read -p 'Paste your PUBLIC SSH Key here: ' pubKey
       echo "${pubKey}" >> /root/.ssh/authorized_keys
       if [[ -s /root/.ssh/authorized_keys ]]; then
-        echo 'You now have an authorized_keys file, test you can SSH in using keys.'
+        BTKsuccess 'You now have an authorized_keys file, test you can SSH in using keys.'
         BTKpause
         break
       else
-        echo 'Installing your key failed, sorry!'
+        BTKwarn 'Installing your key failed, sorry!'
         BTKpause
         break
       fi
@@ -119,7 +118,7 @@ else
       echo "Your Private Key Password is : $pass"
       echo "Your Private Key is : "
       echo "$( </root/.ssh/id_ed25519 )"
-      echo 'You should copy your Private Key and Password and save it locally and use it to SSH in.'
+      BTKinfo 'You should copy your Private Key and Password and save it locally and use it to SSH in.'
       BTKpause
       break
     else
@@ -138,19 +137,21 @@ LoginGraceTime 30
 ' > /etc/ssh/sshd_config.d/99-srvr.conf
 BTKcmdCheck 'SSH hardened.'
 
-BTKpause
+sleep 2
 BTKheader 'Operating System Tweaks'
-
+BTKinfo 'Your hostname in most instances should be a fully qualified FQDN ie somename.srvr.au'
+BTKinfo 'Your DNS should also resolve this hostname to the local ip address.'
 BTKinfo "The current Hostname is $( hostname )"
 BTKaskConfirm "Enter new Hostname or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && hostnamectl set-hostname $btkAnswer
 BTKinfo "The current Hostname is $( hostname )"
 
 BTKinfo "The current Timezone info is\n$( timedatectl )"
-BTKaskConfirm "Enter new Timezone (Australia/Sydney) or enter to leave unchanged."
+BTKaskConfirm "Enter new Timezone (in form Australia/Sydney) or enter to leave unchanged."
 [[ $btkAnswer != '' ]] && timedatectl set-timezone $btkAnswer
 BTKinfo "The current Timezone info is\n$( timedatectl )"
 
+sleep 2
 BTKinfo "Adding a couple of alises...\nThe Command srvrup will upgrade the server\nThe Command srvrboot will reboot the server."
 touch /root/.bash_aliases
 echo 'alias srvrup="apt update; apt full-upgrade -y;"
@@ -179,36 +180,32 @@ echo ':set shiftwidth=2
 :set tabstop=2' >> /root/.vimrc
 BTKcmdCheck 'Set Tab to 2 spaces.'
 
-BTKpause
+sleep 2
 BTKheader 'Check SWAP (virtual RAM).'
 swap=$( free -m | grep Swap: | awk '{print $2}' )
 if [[ "$swap" -eq 0 ]]; then
   BTKinfo 'Looks like you have no swap. In this age of Super fast SSD, allocating some disk space to swap makes sense.'
+  BTKinfo 'I like to have 4gb swap, minimum.'
   ram=$( free -m | grep Mem: | awk '{print $2}' )
   BTKinfo "You have $ram mb of RAM and below is your Disk Usage."
   df -h /
   BTKaskConfirm 'Enter in whole numbers the amount of GB you wish to allocate for swap. 0 for none.'
   if [[ $btkAnswerEng =~ ^[1-9]+$ ]]; then
-    fallocate -l ${btkAnswerEng}GB /swapfile
-    chmod 600 /swapfile
-    mkswap /swapfile
-    swapon /swapfile
-    BTKbackupOrigConfig '/etc/fstab'
-    echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab
-    mount -a
+    btkRunCommands=("fallocate -l ${btkAnswerEng}GB /swapfile" 'chmod 600 /swapfile' 'mkswap /swapfile' 'swapon /swapfile' "BTKbackupOrigConfig '/etc/fstab'" "echo '/swapfile          swap            swap    defaults        0 0' >> /etc/fstab" 'mount -a')
+    BTKrun
     BTKinfo 'Here is your new Memory Stats'
     free
   else
     BTKinfo 'You chose not to enable Swap.'
   fi
 else
-  echo 'Looks like you already have swap enabled...'
+  BYKinfo 'Looks like you already have swap enabled...'
 fi
 
 BTKpause
 BTKheader 'Uncomplicated Firewall - open ssh and enable.'
 if BTKisInstalled 'ufw'; then
-  BTKask 'You have Uncomplicated Firewall (UFW) installed, do you want to allow OpenSSH and Enable.'
+  BTKask 'You have Uncomplicated Firewall (UFW) installed, do you want to open port 22 and enable UFW?'
   if [[ $btkYN == 'y' ]]; then
     if ufw limit 22/tcp &>/dev/null; then
       BTKsuccess 'Firewall limit port 22/tcp.'
@@ -218,16 +215,16 @@ if BTKisInstalled 'ufw'; then
         BTKinfo 'Below is your UFW status.'
         ufw status
       else
-        BTKerror 'Firewall failed to enable.'
+        BTKwarn 'Firewall failed to enable, do it manually.'
       fi
     else
-      BTKerror 'Firewall failed to allow OpenSSH and NOT enabled.'
+      BTKwarn 'Firewall failed to open port 22, therefore UFW NOT enabled, do it manually.'
     fi
   else
-    BTKwarn 'OK, no Uncomplicated Firewall for you then...'
+    BTKinfo 'OK, no Uncomplicated Firewall for you then...'
   fi
 else
-  BTKwarn 'Uncomplicated firewall not installed.'
+  BTKwarn 'Uncomplicated Firewall not installed. You should use a Firewall.'
 fi
 
 BTKpause
@@ -238,19 +235,18 @@ BTKask 'Would you like to install msmtp-mta (simple server email), rather than P
 if [[ ${btkYN} == 'y' ]]; then 
   install+=('msmtp-mta s-nail')
   BTKask 'Would you like to install logwatch... ?'
-  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || BTKwarn 'No Logwatch for you then...'
+  [[ ${btkYN} == 'y' ]] && install+=('logwatch') || BTKinfo 'No Logwatch for you then...'
   BTKask 'Would you like to install sysstat (System Statistics)... ?'
-  [[ ${btkYN} == 'y' ]] && install+=('sysstat') || BTKwarn 'No sysstat for you then...'
+  [[ ${btkYN} == 'y' ]] && install+=('sysstat') || BTKinfo 'No sysstat for you then...'
   
-  
-  echo -e "We will try to install the following software\n${install[@]}\n"
+  echo -e "${btkGreFg}We will try to install the following software:${btkReturn}${install[@]}${btkReset}\n"
   BTKpause
   BTKinstall ${install[@]}
   
   BTKpause
   if BTKisInstalled 'msmtp-mta'; then
 
-    BTKheader 'msmtp and s-nail configuration'
+    BTKheader 'msmtp-mta and s-nail configuration'
     BTKinfo "Mail on this server will be sent to an SMTP Server for delivery...${btkReturn}You will need hostname, username and password as well as port number (usually 587)."
     BTKaskConfirm 'SMTP Server Hostname'
     mtahost=$btkAnswerEng
@@ -258,14 +254,21 @@ if [[ ${btkYN} == 'y' ]]; then
     mtauser=$btkAnswerEng
     BTKaskConfirm 'SMTP Server Username Password'
     mtapass=$btkAnswerEng
-    BTKask 'SMTP Server TLS Port (y for 587, n for 465)'
-    if [[ $btkYN == 'y' ]]; then
-      mtatype='submission'
-      mtaport='587'
-    else
-      mtatype='smtps'
-      mtaport='465'
-    fi
+    while true; do
+      btkMenuOptions=('587' '465')
+      BTKmenu 'n' 'SMTP Server TLS Port (usually 587)'
+      if [[ $btkMenuAnswer == 'a' ]]; then
+        mtatype='submission'
+        mtaport='587'
+        break
+      elif [[ $btkMenuAnswer == 'b' ]]
+        mtatype='smtps'
+        mtaport='465'
+        break
+      elif [[ $btkMenuAnswer == 'x' ]]
+        BTKexit
+      fi
+    done
     BTKinfo 'All email is sent to root, what email address will root send to?'
     BTKaskConfirm 'Root email address'
     mtaroot=$btkAnswerEng
@@ -291,6 +294,7 @@ account default : srvr
 
 aliases /etc/aliases
 " >> /root/.msmtprc
+    BTKcmdCheck 'msmtp-mta configuration'
     chmod 600 /root/.msmtprc
     BTKcmdCheck 'chmod /root/.msmtprc 600.'
 
@@ -317,6 +321,7 @@ default: root
       BTKenable 'sysstat'
       BTKgetStatus 'sysstat'
     fi
+    sleep 1
     if BTKisInstalled 'logwatch'; then
       BTKinfo 'Configure Logwatch'
       mkdir /var/cache/logwatch
@@ -328,9 +333,10 @@ Detail = low
 Service = All
 Service = "-sshd"
 ' > /etc/logwatch/conf/logwatch.conf
-      BTKsuccess '...Done.'
+      BTKcmdCheck 'Logwatch configuration'
     fi
 
+    sleep 1
     BTKinfo 'Configure Unattended Upgrades.'
     echo 'Unattended-Upgrade::Mail "root";
 Unattended-Upgrade::MailReport "always";
@@ -339,7 +345,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
 ' >> /etc/apt/apt.conf.d/50unattended-upgrades
     BTKcmdCheck 'Enable unattended upgrades'
 
-    BTKpause
+    sleep 1
     BTKheader 'Install cron files and jobs...'
     mkdir /root/bums/cron
     BTKcmdCheck 'Make cron Directory.'
@@ -354,10 +360,11 @@ Unattended-Upgrade::Automatic-Reboot "false";
         BTKmakeCron "$bumsCommand" "$bumsJob"
         BTKcmdCheck "${bumsScript}.sh cron installation"
       else
-        BTKerror "${bumsScript}.sh cron job failed to be added."
+        BTKwarn "${bumsScript}.sh cron job failed to be added."
       fi
     fi
 
+    sleep 1
     bumsScript='emailUpgrades'
     BTKinfo "Download and install cron - ${bumsScript}.sh"
     BUMScronDownload "${bumsScript}"
@@ -366,9 +373,10 @@ Unattended-Upgrade::Automatic-Reboot "false";
       BTKmakeCron "$bumsCommand" "$bumsJob"
       BTKcmdCheck "${bumsScript}".sh cron installation"
     else
-      BTKerror "${bumsScript}.sh cron job failed to be added."
+      BTKwarn "${bumsScript}.sh cron job failed to be added."
     fi
 
+    sleep 1
     bumsScript='rebootCheck'
     BTKinfo "Download and install cron - ${bumsScript}.sh"
     BUMScronDownload "${bumsScript}"
@@ -377,9 +385,10 @@ Unattended-Upgrade::Automatic-Reboot "false";
       BTKmakeCron "$bumsCommand" "$bumsJob"
       BTKcmdCheck "${bumsScript}".sh cron installation"
     else
-      BTKerror "${bumsScript}.sh cron job failed to be added."
+      BTKwarn "${bumsScript}.sh cron job failed to be added."
     fi
 
+    sleep 1
     bumsScript='rblCheck'
     BTKinfo "Download and install cron - ${bumsScript}.sh"
     BUMScronDownload "${bumsScript}"
@@ -388,7 +397,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
       BTKmakeCron "$bumsCommand" "$bumsJob"
       BTKcmdCheck "${bumsScript}.sh cron installation"
     else
-      BTKerror "${bumsScript}.sh cron job failed to be added."
+      BTKwarn "${bumsScript}.sh cron job failed to be added."
     fi
   
   else
@@ -410,17 +419,19 @@ if [[ ${btkYN} == 'y' ]]; then
     BTKcmdCheck 'chmod install2.sh executable'
     ./install2.sh
   else
-    BTKerror 'install2.sh download failed.'
+    BTKwarn 'install2.sh download failed.'
   fi
 else
   BTKpause
   BTKheader 'Finish: Upgrade and Reboot'
-  BTKinfo 'Time to update our repository information...'
+  BTKinfo 'Time to update our repository information.'
+  BTKinfo 'Please wait...'
   apt update &>/dev/null
   BTKcmdCheck 'Update Repository'
   BTKinfo 'Now we will upgrade all Server Software... then reboot'
-  BTKpause
+  sleep 1
   DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-  systemctl reboot
   BTKsuccess 'Please wait for the system to reboot...'
+  sleep 1
+  systemctl reboot
 fi
