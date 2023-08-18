@@ -1520,12 +1520,12 @@ BTKenable postfix
 BTKaddRestart opendkim
 BTKaddRestart postfix
 
-mail -s "Public Key" $rootEmail < /etc/opendkim/keys/${selector}.txt
-BTKcmdCheck 'public key mailed'
-
-BTKinfo 'Your DKIM public key was mailed, but it may not arrive as you have not added it to your DNS yet. Below is your DKIM Public Key, copy and paste it to your DNS now.'
+BTKinfo 'Your DKIM public key will be emailed, but it may not arrive as you have not added it to your DNS yet. Below is your DKIM Public Key, copy and paste it to your DNS now.'
 BTKshowFile /etc/opendkim/keys/${selector}.txt
 BTKpause
+
+mail -s "Public Key" $rootEmail < /etc/opendkim/keys/${selector}.txt
+BTKcmdCheck 'public key mailed'
 
 BTKheader 'Lets configure some scripts'
 if BTKisInstalled 'pflogsumm'; then
