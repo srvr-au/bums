@@ -147,8 +147,6 @@ Uses include : DNS server, Storage Server, Backup Storage, Database Server, Web 
 - or Updates system and reboots. You now have a server ready for you to install DNS, Database, rsync etc
 
 ## What install2.sh does
-Status: in Progress
-
 If using an external firewall (most cloud providers do) make sure the following ports are open 80, 443, 25, 587, 995
 
 If you are running msmtp-mta because your provider is blocking port 25 then you need to only open 80 and 443. You must do this first or SSL installation will fail.
